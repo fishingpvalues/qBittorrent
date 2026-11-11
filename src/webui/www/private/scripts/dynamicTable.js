@@ -92,6 +92,7 @@ window.qBittorrent.DynamicTable ??= (() => {
             this.rowHeight = (clientData.get("display_density") === "compact") ? 22 : 26;
             this.rows = new Map();
             this.cachedElements = [];
+            this.renderedRowIds = [];
             this.selectedRows = [];
             this.columns = [];
             this.contextMenu = contextMenu;
@@ -956,7 +957,7 @@ window.qBittorrent.DynamicTable ??= (() => {
 
             if (this.useVirtualList) {
                 // rerender on table update
-                this.rerender(rows);
+                this.rerender(rows, fullUpdate);
             }
             else {
                 const trs = [...this.getTrs()];
@@ -1008,7 +1009,7 @@ window.qBittorrent.DynamicTable ??= (() => {
             }
         }
 
-        rerender(rows = this.getFilteredAndSortedRows()) {
+        rerender(rows = this.getFilteredAndSortedRows(), fullUpdate = true) {
             // set the scrollable height
             const tableHeight = rows.length * this.rowHeight;
             if (tableHeight !== this.previousTableHeight) {
@@ -1016,8 +1017,10 @@ window.qBittorrent.DynamicTable ??= (() => {
                 this.table.style.height = `${tableHeight}px`;
             }
 
-            if (this.renderedHeight === 0)
+            if (this.renderedHeight === 0) {
+                this.renderedRowIds = [];
                 return;
+            }
             // show extra rows at top/bottom to reduce flickering
             const extraRowCount = 20;
             // how many rows can be shown in the visible area
@@ -1029,30 +1032,49 @@ window.qBittorrent.DynamicTable ??= (() => {
                 startRow = Math.max(0, startRow - 1);
             const endRow = Math.min((startRow + visibleRowCount), rows.length);
 
-            const elements = [];
+            const visibleRowIds = [];
             for (let i = startRow; i < endRow; ++i) {
                 const row = rows[i];
-                if (row === undefined)
-                    continue;
-                const offset = i * this.rowHeight;
-                const position = i - startRow;
-                // reuse existing elements
-                let element = this.cachedElements[position];
-                if (element !== undefined)
-                    this.updateRowElement(element, row.rowId, offset);
-                else
-                    element = this.cachedElements[position] = this.createRowElement(row, offset);
-                elements.push(element);
+                if (row !== undefined)
+                    visibleRowIds.push(row.rowId);
             }
+
+            // The visible rows are unchanged if their IDs and positions are the same.
+            // In that case only the data that actually changed needs to be updated.
+            const canReuseRows = (visibleRowIds.length === this.renderedRowIds.length)
+                && visibleRowIds.every((rowId, index) => rowId === this.renderedRowIds[index]);
+
             const hadFocus = this.dynamicTableDiv.contains(document.activeElement);
-            this.tableBody.replaceChildren(...elements);
+            if (canReuseRows) {
+                for (const row of this.tableBody.children)
+                    this.updateRow(row, fullUpdate);
+            }
+            else {
+                const elements = [];
+                for (let i = startRow; i < endRow; ++i) {
+                    const row = rows[i];
+                    if (row === undefined)
+                        continue;
+                    const offset = i * this.rowHeight;
+                    const position = i - startRow;
+                    // reuse existing elements
+                    let element = this.cachedElements[position];
+                    if (element !== undefined)
+                        this.updateRowElement(element, row.rowId, offset);
+                    else
+                        element = this.cachedElements[position] = this.createRowElement(row, offset);
+                    elements.push(element);
+                }
+                this.tableBody.replaceChildren(...elements);
+
+                // update visible rows
+                for (const row of this.tableBody.children)
+                    this.updateRow(row, true);
+            }
 
             // update row classes
             this.setRowClass();
-
-            // update visible rows
-            for (const row of this.tableBody.children)
-                this.updateRow(row, true);
+            this.renderedRowIds = visibleRowIds;
 
             // restore focus so keyboard navigation continues working
             if (hadFocus)
@@ -1485,7 +1507,7 @@ window.qBittorrent.DynamicTable ??= (() => {
             const compareNames = function(row1, row2) {
                 const row1Val = this.getRowValue(row1);
                 const row2Val = this.getRowValue(row2);
-                return row1Val.localeCompare(row2Val, undefined, { numeric: true, sensitivity: "base" });
+                return window.qBittorrent.Misc.naturalSortCollatorBase.compare(row1Val, row2Val);
             };
 
             // name, category, tags

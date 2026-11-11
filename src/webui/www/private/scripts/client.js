@@ -1147,20 +1147,26 @@ window.addEventListener("DOMContentLoaded", async (event) => {
                                 if (!Object.hasOwn(responseJSON["torrents"], key))
                                     continue;
 
-                                responseJSON["torrents"][key]["hash"] = key;
-                                responseJSON["torrents"][key]["rowId"] = key;
-                                if (responseJSON["torrents"][key]["state"]) {
-                                    const state = responseJSON["torrents"][key]["state"];
-                                    responseJSON["torrents"][key]["status"] = state;
-                                    responseJSON["torrents"][key]["_statusOrder"] = statusSortOrder[state];
+                                const torrent = responseJSON["torrents"][key];
+                                torrent["hash"] = key;
+                                torrent["rowId"] = key;
+                                if (torrent["state"]) {
+                                    const state = torrent["state"];
+                                    torrent["status"] = state;
+                                    torrent["_statusOrder"] = statusSortOrder[state];
                                     updateStatuses = true;
                                 }
-                                torrentsTable.updateRowData(responseJSON["torrents"][key]);
-                                if (addTorrentToCategoryList(responseJSON["torrents"][key]))
+                                torrentsTable.updateRowData(torrent);
+                                if (addTorrentToCategoryList(torrent))
                                     updateCategories = true;
-                                if (addTorrentToTagList(responseJSON["torrents"][key]))
+                                if (addTorrentToTagList(torrent))
                                     updateTags = true;
-                                updateTrackers = true;
+                                if (Object.hasOwn(torrent, "tracker")
+                                    || Object.hasOwn(torrent, "trackers_count")
+                                    || Object.hasOwn(torrent, "has_tracker_warning")
+                                    || Object.hasOwn(torrent, "has_tracker_error")
+                                    || Object.hasOwn(torrent, "has_other_announce_error"))
+                                    updateTrackers = true;
                                 updateTorrents = true;
                             }
                         }

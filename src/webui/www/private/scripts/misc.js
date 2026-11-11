@@ -44,6 +44,7 @@ window.qBittorrent.Misc ??= (() => {
             compareVersions: compareVersions,
             escapeHtml: escapeHtml,
             naturalSortCollator: naturalSortCollator,
+            naturalSortCollatorBase: naturalSortCollatorBase,
             safeTrim: safeTrim,
             toFixedPointString: toFixedPointString,
             containsAllTerms: containsAllTerms,
@@ -306,6 +307,7 @@ window.qBittorrent.Misc ??= (() => {
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Collator/Collator#parameters
     const naturalSortCollator = new Intl.Collator(undefined, { numeric: true, usage: "sort" });
+    const naturalSortCollatorBase = new Intl.Collator(undefined, { numeric: true, sensitivity: "base", usage: "sort" });
 
     const safeTrim = (value) => {
         try {
