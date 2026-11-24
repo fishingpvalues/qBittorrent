@@ -317,3 +317,20 @@ test("Test serializeItemFilter() and parseItemFilter()", () => {
     expect(parseItemFilter("{\"included\":[1],\"excluded\":[]}")).toBe(null);
     expect(parseItemFilter("{\"included\":\"a\",\"excluded\":[]}")).toBe(null);
 });
+
+test("Test updateItemFilter() with single choice items", () => {
+    const { updateItemFilter, createItemFilter } = window.qBittorrent.Misc;
+    const ALL = "all";
+    const SINGLE = ["error", "warning"];
+
+    // single choice items are always chosen alone, regardless of modifiers
+    expect(updateItemFilter(createItemFilter(["a"], ["b"]), "error", ALL, { ctrlKey: true }, SINGLE)).toStrictEqual(createItemFilter(["error"]));
+    expect(updateItemFilter(createItemFilter(["a"], ["b"]), "warning", ALL, { altKey: true }, SINGLE)).toStrictEqual(createItemFilter(["warning"]));
+
+    // including/excluding another item replaces the single choice item
+    expect(updateItemFilter(createItemFilter(["error"]), "a", ALL, { ctrlKey: true }, SINGLE)).toStrictEqual(createItemFilter(["a"]));
+    expect(updateItemFilter(createItemFilter(["error"]), "a", ALL, { altKey: true }, SINGLE)).toStrictEqual(createItemFilter([], ["a"]));
+
+    // other items keep working as usual
+    expect(updateItemFilter(createItemFilter(["a"]), "b", ALL, { metaKey: true }, SINGLE)).toStrictEqual(createItemFilter(["a", "b"]));
+});

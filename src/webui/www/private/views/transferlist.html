@@ -2,7 +2,7 @@
     <span>QBT_TR(Active filters:)QBT_TR[CONTEXT=ActiveFiltersBar]</span>
     <span id="activeFiltersChips"></span>
     <span id="activeFiltersCounter"></span>
-    <button type="button" id="activeFiltersClearButton" title="QBT_TR(Remove all category and tag filters)QBT_TR[CONTEXT=ActiveFiltersBar]">QBT_TR(Clear filters)QBT_TR[CONTEXT=ActiveFiltersBar]</button>
+    <button type="button" id="activeFiltersClearButton" title="QBT_TR(Remove all category, tag and tracker filters)QBT_TR[CONTEXT=ActiveFiltersBar]">QBT_TR(Clear filters)QBT_TR[CONTEXT=ActiveFiltersBar]</button>
 </div>
 <div id="torrentsTableDiv" class="dynamicTableDiv">
     <div id="torrentsTableFixedHeaderDiv" class="dynamicTableFixedHeaderDiv">
@@ -118,6 +118,7 @@
             document.getElementById("activeFiltersClearButton").addEventListener("click", (event) => {
                 setCategoryFilter(CATEGORIES_ALL);
                 setTagFilter(TAGS_ALL);
+                setTrackerFilter(TRACKERS_ALL);
             });
         };
 

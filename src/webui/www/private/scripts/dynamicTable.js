@@ -1641,7 +1641,7 @@ window.qBittorrent.DynamicTable ??= (() => {
             };
         }
 
-        // `category` and `tag` are item filters, see `window.qBittorrent.Misc.createItemFilter()`
+        // `category`, `tag` and `trackerHost` are item filters, see `window.qBittorrent.Misc.createItemFilter()`
         applyFilter(row, filterName, category, tag, trackerHost, filterTerms) {
             const { state, upspeed, dlspeed } = row["full_data"];
             let inactive = false;
@@ -1739,45 +1739,37 @@ window.qBittorrent.DynamicTable ??= (() => {
                     return false;
             }
 
-            switch (trackerHost) {
-                case TRACKERS_ALL:
-                    break; // do nothing
+            if ((trackerHost.included.size > 0) || (trackerHost.excluded.size > 0)) {
+                const hasTracker = (selectedTracker) => {
+                    switch (selectedTracker) {
+                        case TRACKERS_ANNOUNCE_ERROR:
+                            return row["full_data"]["has_other_announce_error"];
+                        case TRACKERS_ERROR:
+                            return row["full_data"]["has_tracker_error"];
+                        case TRACKERS_TRACKERLESS:
+                            return row["full_data"].trackers_count === 0;
+                        case TRACKERS_WARNING:
+                            return row["full_data"]["has_tracker_warning"];
+                        default: {
+                            const trackerTorrentMap = trackerMap.get(selectedTracker);
+                            if (trackerTorrentMap === undefined)
+                                return false;
 
-                case TRACKERS_ANNOUNCE_ERROR:
-                    if (!row["full_data"]["has_other_announce_error"])
-                        return false;
-                    break;
-
-                case TRACKERS_ERROR:
-                    if (!row["full_data"]["has_tracker_error"])
-                        return false;
-                    break;
-
-                case TRACKERS_TRACKERLESS:
-                    if (row["full_data"].trackers_count > 0)
-                        return false;
-                    break;
-
-                case TRACKERS_WARNING:
-                    if (!row["full_data"]["has_tracker_warning"])
-                        return false;
-                    break;
-
-                default: {
-                    const trackerTorrentMap = trackerMap.get(trackerHost);
-                    if (trackerTorrentMap !== undefined) {
-                        let found = false;
-                        for (const torrents of trackerTorrentMap.values()) {
-                            if (torrents.has(row["full_data"].rowId)) {
-                                found = true;
-                                break;
+                            for (const torrents of trackerTorrentMap.values()) {
+                                if (torrents.has(row["full_data"].rowId))
+                                    return true;
                             }
-                        }
-                        if (!found)
                             return false;
+                        }
                     }
-                    break;
+                };
+
+                for (const excludedTracker of trackerHost.excluded) {
+                    if (hasTracker(excludedTracker))
+                        return false;
                 }
+                if ((trackerHost.included.size > 0) && !trackerHost.included.values().some(hasTracker))
+                    return false;
             }
 
             if ((filterTerms !== undefined) && (filterTerms !== null)) {
@@ -1796,11 +1788,13 @@ window.qBittorrent.DynamicTable ??= (() => {
             return true;
         }
 
-        // `category` and `tag` are either item filters or IDs of a single item
+        // `category`, `tag` and `tracker` are either item filters or IDs of a single item
         getFilteredTorrentsNumber(filterName, category, tag, tracker) {
             let cnt = 0;
             category = window.qBittorrent.Misc.toItemFilter(category, CATEGORIES_ALL);
             tag = window.qBittorrent.Misc.toItemFilter(tag, TAGS_ALL);
+            tracker = window.qBittorrent.Misc.toItemFilter(tracker, TRACKERS_ALL);
+            tracker = window.qBittorrent.Misc.toItemFilter(tracker, TRACKERS_ALL);
 
             for (const row of this.rows.values()) {
                 if (this.applyFilter(row, filterName, category, tag, tracker, null))
@@ -1809,11 +1803,13 @@ window.qBittorrent.DynamicTable ??= (() => {
             return cnt;
         }
 
-        // `category` and `tag` are either item filters or IDs of a single item
+        // `category`, `tag` and `tracker` are either item filters or IDs of a single item
         getFilteredTorrentsHashes(filterName, category, tag, tracker) {
             const rowsHashes = [];
             category = window.qBittorrent.Misc.toItemFilter(category, CATEGORIES_ALL);
             tag = window.qBittorrent.Misc.toItemFilter(tag, TAGS_ALL);
+            tracker = window.qBittorrent.Misc.toItemFilter(tracker, TRACKERS_ALL);
+            tracker = window.qBittorrent.Misc.toItemFilter(tracker, TRACKERS_ALL);
             const useRegex = document.getElementById("torrentsFilterRegexBox").checked;
             const filterText = document.getElementById("torrentsFilterInput").value.trim().toLowerCase();
             let filterTerms;
@@ -1850,7 +1846,7 @@ window.qBittorrent.DynamicTable ??= (() => {
             }
 
             for (const row of this.rows.values()) {
-                if (this.applyFilter(row, selectedStatus, categoryFilter, tagFilter, selectedTracker, filterTerms)) {
+                if (this.applyFilter(row, selectedStatus, categoryFilter, tagFilter, trackerFilter, filterTerms)) {
                     filteredRows.push(row);
                     filteredRows[row.rowId] = row;
                 }

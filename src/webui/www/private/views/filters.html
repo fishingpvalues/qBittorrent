@@ -231,6 +231,15 @@
             targets: ".trackersFilterContextMenuTarget",
             menu: "trackersFilterMenu",
             actions: {
+                includeTracker: (element, ref) => {
+                    setTrackerFilter(window.qBittorrent.Misc.updateItemFilter(trackerFilter, element.id, TRACKERS_ALL, { ctrlKey: true }, TRACKERS_SINGLE_CHOICE));
+                },
+                excludeTracker: (element, ref) => {
+                    setTrackerFilter(window.qBittorrent.Misc.updateItemFilter(trackerFilter, element.id, TRACKERS_ALL, { altKey: true }, TRACKERS_SINGLE_CHOICE));
+                },
+                resetTrackerFilter: (element, ref) => {
+                    setTrackerFilter(TRACKERS_ALL);
+                },
                 deleteTracker: (element, ref) => {
                     deleteTrackerFN(element.id);
                 },
@@ -253,7 +262,10 @@
             },
             onShow: function() {
                 this.startTorrentObserver();
-                setTrackerFilter(this.options.element.id);
+                // Keep a complex filter intact, so that it can be changed via the menu
+                const { id } = this.options.element;
+                if (!window.qBittorrent.Misc.isMultiItemFilter(trackerFilter) && !trackerFilter.excluded.has(id))
+                    setTrackerFilter(id);
             },
             onHide: function() {
                 this.stopTorrentObserver();
@@ -294,8 +306,8 @@
                     setTagFilter(window.qBittorrent.Misc.updateItemFilter(tagFilter, filterItemID, TAGS_ALL, event));
                     break;
                 case "trackerFilterList":
-                    if (!isSelected)
-                        setTrackerFilter(filterItemID);
+                    // Ctrl/Cmd+click includes the tracker, Alt/Option+click excludes it
+                    setTrackerFilter(window.qBittorrent.Misc.updateItemFilter(trackerFilter, filterItemID, TRACKERS_ALL, event, TRACKERS_SINGLE_CHOICE));
                     break;
                 default:
                     console.error(`Unexpected filterListID: ${filterListID}`);

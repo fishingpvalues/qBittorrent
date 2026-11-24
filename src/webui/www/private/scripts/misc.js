@@ -571,15 +571,16 @@ window.qBittorrent.Misc ??= (() => {
      * - plain click: filter by `item` only
      * - Ctrl/Cmd+click: include `item` or stop including it
      * - Alt/Option+click: exclude `item` or stop excluding it
+     * Items in `singleChoiceItems` (e.g. tracker statuses) can only be chosen alone.
      */
-    const updateItemFilter = (filter, item, allItem, { altKey = false, ctrlKey = false, metaKey = false } = {}) => {
+    const updateItemFilter = (filter, item, allItem, { altKey = false, ctrlKey = false, metaKey = false } = {}, singleChoiceItems = []) => {
         if (item === allItem)
             return createItemFilter();
 
-        if (!altKey && !ctrlKey && !metaKey)
+        if ((!altKey && !ctrlKey && !metaKey) || singleChoiceItems.includes(item))
             return createItemFilter([item]);
 
-        const included = new Set(filter.included);
+        const included = new Set([...filter.included].filter((includedItem) => !singleChoiceItems.includes(includedItem)));
         const excluded = new Set(filter.excluded);
         // an item cannot be included and excluded at the same time
         const [toggledSet, otherSet] = altKey ? [excluded, included] : [included, excluded];

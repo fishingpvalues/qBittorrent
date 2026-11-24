@@ -654,7 +654,15 @@ window.qBittorrent.ContextMenu ??= (() => {
 
     class TrackersFilterContextMenu extends FilterListContextMenu {
         updateMenuItems() {
-            switch (this.options.element.id) {
+            const id = this.options.element.id;
+            this.updateItemFilterActions(trackerFilter, id, TRACKERS_ALL, "Tracker");
+            // tracker statuses can only be chosen alone
+            if (TRACKERS_SINGLE_CHOICE.includes(id)) {
+                this.hideItem("includeTracker");
+                this.hideItem("excludeTracker");
+            }
+
+            switch (id) {
                 case TRACKERS_ALL:
                 case TRACKERS_ANNOUNCE_ERROR:
                 case TRACKERS_ERROR:

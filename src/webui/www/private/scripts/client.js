@@ -411,7 +411,10 @@ const trackerMap = new Map();
 
 const clientData = window.qBittorrent.ClientData;
 
-let selectedTracker = localPreferences.get("selected_tracker", TRACKERS_ALL);
+// tracker statuses can't be combined with other items
+const TRACKERS_SINGLE_CHOICE = Object.freeze([TRACKERS_ANNOUNCE_ERROR, TRACKERS_ERROR, TRACKERS_WARNING]);
+
+let trackerFilter = loadItemFilter("tracker_filter", "selected_tracker", TRACKERS_ALL);
 let setTrackerFilter = () => {};
 
 /* All filters */
@@ -568,12 +571,19 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         handleFilterSelectionChange(currentHash, newHash);
     };
 
+    // `tracker` is either an item filter or the ID of a single tracker host
     setTrackerFilter = (tracker) => {
+        const filter = window.qBittorrent.Misc.toItemFilter(tracker, TRACKERS_ALL);
+        if (window.qBittorrent.Misc.isItemFilterEqual(filter, trackerFilter))
+            return;
+
         const currentHash = torrentsTable.getCurrentTorrentID();
 
-        localPreferences.set("selected_tracker", tracker);
-        selectedTracker = tracker;
+        localPreferences.set("tracker_filter", window.qBittorrent.Misc.serializeItemFilter(filter));
+        localPreferences.remove("selected_tracker");
+        trackerFilter = filter;
         highlightSelectedTracker();
+        updateActiveFiltersBar();
         updateMainData();
 
         const newHash = torrentsTable.getCurrentTorrentID();
@@ -836,6 +846,28 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         addChips({ ...tagChips, isExcluded: false });
         addChips({ ...tagChips, isExcluded: true });
 
+        const trackerNames = new Map([
+            [TRACKERS_TRACKERLESS, "QBT_TR(Trackerless)QBT_TR[CONTEXT=ActiveFiltersBar]"],
+            [TRACKERS_ERROR, "QBT_TR(Tracker error)QBT_TR[CONTEXT=TrackerFiltersList]"],
+            [TRACKERS_ANNOUNCE_ERROR, "QBT_TR(Other error)QBT_TR[CONTEXT=TrackerFiltersList]"],
+            [TRACKERS_WARNING, "QBT_TR(Warning)QBT_TR[CONTEXT=TrackerFiltersList]"]
+        ]);
+        const trackerChips = {
+            filter: trackerFilter,
+            iconURL: "images/trackers.svg",
+            getName: (tracker) => (trackerNames.get(tracker) ?? tracker),
+            getToolTip: (isExcluded) => (isExcluded
+                ? "QBT_TR(Hiding torrents with tracker \"%1\". Click to remove this filter.)QBT_TR[CONTEXT=ActiveFiltersBar]"
+                : "QBT_TR(Showing torrents with tracker \"%1\". Click to remove this filter.)QBT_TR[CONTEXT=ActiveFiltersBar]"),
+            remove: (tracker) => {
+                setTrackerFilter(window.qBittorrent.Misc.createItemFilter(
+                    [...trackerFilter.included].filter((item) => (item !== tracker)),
+                    [...trackerFilter.excluded].filter((item) => (item !== tracker))));
+            }
+        };
+        addChips({ ...trackerChips, isExcluded: false });
+        addChips({ ...trackerChips, isExcluded: true });
+
         bar.classList.toggle("invisible", (chips.length === 0));
         document.getElementById("activeFiltersChips").replaceChildren(...chips);
         document.getElementById("activeFiltersCounter").textContent = "QBT_TR(%1 of %2 torrents)QBT_TR[CONTEXT=ActiveFiltersBar]"
@@ -1038,7 +1070,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         const createLink = (host, text, count) => {
             const trackerFilterItem = trackerItemTemplate.content.cloneNode(true).firstElementChild;
             trackerFilterItem.id = host;
-            trackerFilterItem.classList.toggle("selectedFilter", (host === selectedTracker));
+            highlightItemFilter(trackerFilterItem, trackerFilter, TRACKERS_ALL);
 
             const span = trackerFilterItem.firstElementChild;
             span.lastChild.textContent = `${text} (${count})`;
@@ -1098,6 +1130,11 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             trackerFilterList.appendChild(createLink(trackerHost, trackerHost, trackerCount));
 
         window.qBittorrent.Filters.trackersFilterContextMenu.searchAndAddTargets();
+
+        setTrackerFilter(pruneItemFilter(trackerFilter, (tracker) => {
+            return (tracker === TRACKERS_TRACKERLESS) || TRACKERS_SINGLE_CHOICE.includes(tracker) || trackerMap.has(tracker);
+        }));
+        updateActiveFiltersBar();
     };
 
     const highlightSelectedTracker = () => {
@@ -1106,7 +1143,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             return;
 
         for (const tracker of trackerFilterList.children)
-            tracker.classList.toggle("selectedFilter", (tracker.id === selectedTracker));
+            highlightItemFilter(tracker, trackerFilter, TRACKERS_ALL);
     };
 
     const statusSortOrder = Object.freeze({
@@ -1250,13 +1287,9 @@ window.addEventListener("DOMContentLoaded", async (event) => {
                                 if (trackerTorrentMap !== undefined) {
                                     trackerTorrentMap.delete(tracker);
                                     // Remove unused trackers
-                                    if (trackerTorrentMap.size === 0) {
+                                    // the tracker filter gets pruned in `updateTrackerList()`
+                                    if (trackerTorrentMap.size === 0)
                                         trackerMap.delete(host);
-                                        if (selectedTracker === host) {
-                                            selectedTracker = TRACKERS_ALL;
-                                            localPreferences.set("selected_tracker", selectedTracker);
-                                        }
-                                    }
                                 }
                             }
                             updateTrackers = true;
