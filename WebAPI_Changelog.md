@@ -1,5 +1,17 @@
 # WebAPI Changelog
 
+## 2.17.1
+
+* [#TBD](https://github.com/qbittorrent/qBittorrent/pulls)
+  * `torrents/info` endpoint accepts the following new parameters for including and excluding several items:
+    * `categories` (string) - torrent must belong to any of these categories, separated by `\n`
+    * `excludeCategories` (string) - torrent must belong to none of these categories, separated by `\n`
+    * `tags` (string) - torrent must have all of these tags, separated by `,`
+    * `excludeTags` (string) - torrent must have none of these tags, separated by `,`
+    * `trackers` (string) - torrent must have a tracker of any of these hosts, separated by `\n`
+    * `excludeTrackers` (string) - torrent must have no tracker of these hosts, separated by `\n`
+  * An empty item means "uncategorized", "untagged" or "trackerless" respectively. Excluded items always win. The existing `category` and `tag` parameters keep working and are combined with the new ones
+
 ## 2.17.0
 
 * [#24955](https://github.com/qbittorrent/qBittorrent/pull/24955)

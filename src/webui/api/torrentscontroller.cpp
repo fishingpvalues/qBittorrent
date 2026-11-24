@@ -203,6 +203,25 @@ namespace
         return std::nullopt;
     }
 
+    // Returns empty list if the param is missing. Empty items are kept,
+    // since an empty category/tag/tracker means "uncategorized"/"untagged"/"trackerless".
+    QStringList getOptionalList(const StringMap &params, const QString &name, const QChar separator)
+    {
+        const std::optional<QString> optionalValue = Utils::Dict::get(params, name);
+        if (!optionalValue)
+            return {};
+
+        return optionalValue->split(separator);
+    }
+
+    TagSet getOptionalTagSet(const StringMap &params, const QString &name)
+    {
+        TagSet tags;
+        for (const QString &tagStr : asConst(getOptionalList(params, name, u',')))
+            tags.insert(Tag(tagStr));
+        return tags;
+    }
+
     void applyShareLimitsParams(BitTorrent::ShareLimits &shareLimits, const StringMap &params)
     {
         const QString PARAM_RATIO_LIMIT = u"ratioLimit"_s;
@@ -665,6 +684,12 @@ void TorrentsController::countAction()
 //   - filter (string): all, downloading, seeding, completed, stopped, running, active, inactive, stalled, stalled_uploading, stalled_downloading
 //   - category (string): torrent category for filtering by it (empty string means "uncategorized"; no "category" param presented means "any category")
 //   - tag (string): torrent tag for filtering by it (empty string means "untagged"; no "tag" param presented means "any tag")
+//   - categories (string): torrent must belong to any of these categories, separated by \n (empty item means "uncategorized")
+//   - excludeCategories (string): torrent must belong to none of these categories, separated by \n (empty item means "uncategorized")
+//   - tags (string): torrent must have all of these tags, separated by , (empty item means "untagged")
+//   - excludeTags (string): torrent must have none of these tags, separated by , (empty item means "untagged")
+//   - trackers (string): torrent must have a tracker of any of these hosts, separated by \n (empty item means "trackerless")
+//   - excludeTrackers (string): torrent must have no tracker of these hosts, separated by \n (empty item means "trackerless")
 //   - hashes (string): filter by hashes, can contain multiple hashes separated by |
 //   - private (bool): filter torrents that are from private trackers (true) or not (false). Empty means any torrent (no filtering)
 //   - includeFiles (bool): include files in list output (true) or not (false). Empty means not included
@@ -695,7 +720,26 @@ void TorrentsController::infoAction()
             idSet->insert(BitTorrent::TorrentID::fromString(hash));
     }
 
-    const TorrentFilter torrentFilter {parseTorrentStatus(filter), idSet, category, tag, isPrivate};
+    TorrentFilter torrentFilter {parseTorrentStatus(filter), idSet, TorrentFilter::AnyCategory, TorrentFilter::AnyTag, isPrivate};
+
+    QSet<QString> includedCategories;
+    if (category)
+        includedCategories.insert(*category);
+    for (const QString &item : asConst(getOptionalList(params(), u"categories"_s, u'\n')))
+        includedCategories.insert(item);
+    const QStringList excludedCategoriesList = getOptionalList(params(), u"excludeCategories"_s, u'\n');
+    torrentFilter.setCategories(includedCategories, {excludedCategoriesList.cbegin(), excludedCategoriesList.cend()});
+
+    TagSet includedTags = getOptionalTagSet(params(), u"tags"_s);
+    if (tag)
+        includedTags.insert(*tag);
+    torrentFilter.setTags(includedTags, getOptionalTagSet(params(), u"excludeTags"_s));
+
+    const QStringList includedTrackersList = getOptionalList(params(), u"trackers"_s, u'\n');
+    const QStringList excludedTrackersList = getOptionalList(params(), u"excludeTrackers"_s, u'\n');
+    torrentFilter.setTrackerHosts({includedTrackersList.cbegin(), includedTrackersList.cend()}
+        , {excludedTrackersList.cbegin(), excludedTrackersList.cend()});
+
     QVariantList torrentList;
     for (const BitTorrent::Torrent *torrent : asConst(BitTorrent::Session::instance()->torrents()))
     {
