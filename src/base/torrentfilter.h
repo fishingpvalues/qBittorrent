@@ -96,6 +96,10 @@ public:
     bool setTags(const TagSet &included, const TagSet &excluded);
     bool setPrivate(std::optional<bool> isPrivate);
     bool setTrackerHost(const std::optional<QString> &trackerHost);
+    // Torrent must have a tracker of any of `included` hosts (or `included` is empty)
+    // and must not have a tracker of any of `excluded` hosts.
+    // Pass empty string for trackerless torrents.
+    bool setTrackerHosts(const QSet<QString> &included, const QSet<QString> &excluded);
     bool setAnnounceStatus(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus);
 
     bool match(const BitTorrent::Torrent *torrent) const;
@@ -107,6 +111,7 @@ private:
     bool matchTag(const BitTorrent::Torrent *torrent) const;
     bool matchPrivate(const BitTorrent::Torrent *torrent) const;
     bool matchTracker(const BitTorrent::Torrent *torrent) const;
+    bool matchTrackerHost(const BitTorrent::Torrent *torrent, const QString &trackerHost) const;
 
     Status m_status {All};
     QSet<QString> m_includedCategories;
@@ -115,7 +120,8 @@ private:
     TagSet m_excludedTags;
     std::optional<TorrentIDSet> m_idSet;
     std::optional<bool> m_private;
-    std::optional<QString> m_trackerHost;
+    QSet<QString> m_includedTrackerHosts;
+    QSet<QString> m_excludedTrackerHosts;
     std::optional<BitTorrent::TorrentAnnounceStatus> m_announceStatus;
 };
 
