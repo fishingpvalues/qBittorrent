@@ -29,11 +29,10 @@
 
 #pragma once
 
-#include <QTreeView>
+#include "base/tagset.h"
+#include "filtertreeview.h"
 
-class Tag;
-
-class TagFilterWidget final : public QTreeView
+class TagFilterWidget final : public FilterTreeView
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(TagFilterWidget)
@@ -41,17 +40,18 @@ class TagFilterWidget final : public QTreeView
 public:
     explicit TagFilterWidget(QWidget *parent = nullptr);
 
-    std::optional<Tag> currentTag() const;
+    TagSet includedTags() const;
+    TagSet excludedTags() const;
+    void removeFromFilter(const Tag &tag);
 
 signals:
-    void tagChanged(const std::optional<Tag> &tag);
+    void tagFilterChanged(const TagSet &included, const TagSet &excluded);
     void actionStartTorrentsTriggered();
     void actionForceStartTorrentsTriggered();
     void actionStopTorrentsTriggered();
     void actionDeleteTorrentsTriggered();
 
 private slots:
-    void onCurrentRowChanged(const QModelIndex &current, const QModelIndex &previous);
     void showMenu();
     void callUpdateGeometry();
     void addTag();

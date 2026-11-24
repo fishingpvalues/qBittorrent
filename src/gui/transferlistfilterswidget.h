@@ -32,6 +32,9 @@
 #include <QtContainerFwd>
 #include <QWidget>
 
+class CategoryFilterWidget;
+class Tag;
+class TagFilterWidget;
 class TrackersFilterWidget;
 class TransferListWidget;
 
@@ -49,9 +52,14 @@ class TransferListFiltersWidget final : public QWidget
 public:
     TransferListFiltersWidget(QWidget *parent, TransferListWidget *transferList, bool downloadFavicon);
     void setDownloadTrackerFavicon(bool value);
+    void removeCategoryFromFilter(const QString &category);
+    void removeTagFromFilter(const Tag &tag);
+    void resetCategoryAndTagFilters();
 
 private:
     TransferListWidget *m_transferList = nullptr;
+    CategoryFilterWidget *m_categoryFilterWidget = nullptr;
+    TagFilterWidget *m_tagFilterWidget = nullptr;
     TrackersFilterWidget *m_trackersFilterWidget = nullptr;
     bool m_useSeparateTrackerStatusFilter = false;
 };

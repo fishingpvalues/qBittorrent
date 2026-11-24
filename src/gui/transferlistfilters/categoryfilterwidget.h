@@ -28,9 +28,12 @@
 
 #pragma once
 
-#include <QTreeView>
+#include <QSet>
+#include <QString>
 
-class CategoryFilterWidget final : public QTreeView
+#include "filtertreeview.h"
+
+class CategoryFilterWidget final : public FilterTreeView
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(CategoryFilterWidget)
@@ -39,16 +42,18 @@ public:
     explicit CategoryFilterWidget(QWidget *parent = nullptr);
 
     QString currentCategory() const;
+    QSet<QString> includedCategories() const;
+    QSet<QString> excludedCategories() const;
+    void removeFromFilter(const QString &categoryName);
 
 signals:
-    void categoryChanged(const QString &categoryName);
+    void categoryFilterChanged(const QSet<QString> &included, const QSet<QString> &excluded);
     void actionStartTorrentsTriggered();
     void actionForceStartTorrentsTriggered();
     void actionStopTorrentsTriggered();
     void actionDeleteTorrentsTriggered();
 
 private slots:
-    void onCurrentRowChanged(const QModelIndex &current, const QModelIndex &previous);
     void showMenu();
     void callUpdateGeometry();
     void addCategory();

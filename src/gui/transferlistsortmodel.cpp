@@ -136,50 +136,26 @@ void TransferListSortModel::setStatusFilter(const TorrentFilter::Status status)
 #endif
 }
 
-void TransferListSortModel::setCategoryFilter(const QString &category)
+void TransferListSortModel::setCategoryFilter(const QSet<QString> &included, const QSet<QString> &excluded)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     beginFilterChange();
-    m_filter.setCategory(category);
+    m_filter.setCategories(included, excluded);
     endFilterChange(Direction::Rows);
 #else
-    if (m_filter.setCategory(category))
+    if (m_filter.setCategories(included, excluded))
         invalidateRowsFilter();
 #endif
 }
 
-void TransferListSortModel::disableCategoryFilter()
+void TransferListSortModel::setTagFilter(const TagSet &included, const TagSet &excluded)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     beginFilterChange();
-    m_filter.setCategory(TorrentFilter::AnyCategory);
+    m_filter.setTags(included, excluded);
     endFilterChange(Direction::Rows);
 #else
-    if (m_filter.setCategory(TorrentFilter::AnyCategory))
-        invalidateRowsFilter();
-#endif
-}
-
-void TransferListSortModel::setTagFilter(const Tag &tag)
-{
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    beginFilterChange();
-    m_filter.setTag(tag);
-    endFilterChange(Direction::Rows);
-#else
-    if (m_filter.setTag(tag))
-        invalidateRowsFilter();
-#endif
-}
-
-void TransferListSortModel::disableTagFilter()
-{
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    beginFilterChange();
-    m_filter.setTag(TorrentFilter::AnyTag);
-    endFilterChange(Direction::Rows);
-#else
-    if (m_filter.setTag(TorrentFilter::AnyTag))
+    if (m_filter.setTags(included, excluded))
         invalidateRowsFilter();
 #endif
 }

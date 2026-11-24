@@ -32,9 +32,12 @@
 #include <functional>
 
 #include <QtContainerFwd>
+#include <QSet>
+#include <QString>
 #include <QTreeView>
 
 #include "base/bittorrent/infohash.h"
+#include "base/tagset.h"
 #include "guiapplicationcomponent.h"
 #include "transferlistmodel.h"
 
@@ -99,8 +102,12 @@ public slots:
     void hideQueuePosColumn(bool hide);
     void applyFilter(const QString &name, const TransferListModel::Column &type);
     void applyStatusFilter(int filterIndex);
-    void applyCategoryFilter(const QString &category);
-    void applyTagFilter(const std::optional<Tag> &tag);
+    void applyCategoryFilter(const QSet<QString> &included, const QSet<QString> &excluded);
+    void applyTagFilter(const TagSet &included, const TagSet &excluded);
+    QSet<QString> includedCategories() const;
+    QSet<QString> excludedCategories() const;
+    TagSet includedTags() const;
+    TagSet excludedTags() const;
     void applyTrackerFilter(const std::optional<QString> &trackerHost);
     void applyAnnounceStatusFilter(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus);
     void previewFile(const Path &filePath);
@@ -108,6 +115,7 @@ public slots:
 
 signals:
     void currentTorrentChanged(BitTorrent::Torrent *torrent);
+    void categoryOrTagFilterChanged();
 
 private slots:
     void torrentDoubleClicked();
@@ -145,4 +153,8 @@ private:
 
     TransferListModel *m_listModel = nullptr;
     TransferListSortModel *m_sortFilterModel = nullptr;
+    QSet<QString> m_includedCategories;
+    QSet<QString> m_excludedCategories;
+    TagSet m_includedTags;
+    TagSet m_excludedTags;
 };

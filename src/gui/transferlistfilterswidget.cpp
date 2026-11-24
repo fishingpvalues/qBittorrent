@@ -76,6 +76,7 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
 
     {
         auto *categoryFilterWidget = new CategoryFilterWidget(this);
+        m_categoryFilterWidget = categoryFilterWidget;
         connect(categoryFilterWidget, &CategoryFilterWidget::actionDeleteTorrentsTriggered
                 , transferList, &TransferListWidget::deleteVisibleTorrents);
         connect(categoryFilterWidget, &CategoryFilterWidget::actionStopTorrentsTriggered
@@ -84,14 +85,17 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
                 , transferList, &TransferListWidget::startVisibleTorrents);
         connect(categoryFilterWidget, &CategoryFilterWidget::actionForceStartTorrentsTriggered
                 , transferList, &TransferListWidget::forceStartVisibleTorrents);
-        connect(categoryFilterWidget, &CategoryFilterWidget::categoryChanged
+        connect(categoryFilterWidget, &CategoryFilterWidget::categoryFilterChanged
                 , transferList, &TransferListWidget::applyCategoryFilter);
 
         auto *item = new TransferListFiltersWidgetItem(tr("Categories"), categoryFilterWidget, this);
         item->setChecked(pref->getCategoryFilterState());
         connect(item, &TransferListFiltersWidgetItem::toggled, this, [this, categoryFilterWidget](const bool enabled)
         {
-            m_transferList->applyCategoryFilter(enabled ? categoryFilterWidget->currentCategory() : QString());
+            if (enabled)
+                m_transferList->applyCategoryFilter(categoryFilterWidget->includedCategories(), categoryFilterWidget->excludedCategories());
+            else
+                m_transferList->applyCategoryFilter({}, {});
         });
         connect(item, &TransferListFiltersWidgetItem::toggled, pref, &Preferences::setCategoryFilterState);
         mainWidgetLayout->addWidget(item);
@@ -99,6 +103,7 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
 
     {
         auto *tagFilterWidget = new TagFilterWidget(this);
+        m_tagFilterWidget = tagFilterWidget;
         connect(tagFilterWidget, &TagFilterWidget::actionDeleteTorrentsTriggered
                 , transferList, &TransferListWidget::deleteVisibleTorrents);
         connect(tagFilterWidget, &TagFilterWidget::actionStopTorrentsTriggered
@@ -107,14 +112,17 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
                 , transferList, &TransferListWidget::startVisibleTorrents);
         connect(tagFilterWidget, &TagFilterWidget::actionForceStartTorrentsTriggered
                 , transferList, &TransferListWidget::forceStartVisibleTorrents);
-        connect(tagFilterWidget, &TagFilterWidget::tagChanged
+        connect(tagFilterWidget, &TagFilterWidget::tagFilterChanged
                 , transferList, &TransferListWidget::applyTagFilter);
 
         auto *item = new TransferListFiltersWidgetItem(tr("Tags"), tagFilterWidget, this);
         item->setChecked(pref->getTagFilterState());
         connect(item, &TransferListFiltersWidgetItem::toggled, this, [this, tagFilterWidget](const bool enabled)
         {
-            m_transferList->applyTagFilter(enabled ? tagFilterWidget->currentTag() : std::nullopt);
+            if (enabled)
+                m_transferList->applyTagFilter(tagFilterWidget->includedTags(), tagFilterWidget->excludedTags());
+            else
+                m_transferList->applyTagFilter({}, {});
         });
         connect(item, &TransferListFiltersWidgetItem::toggled, pref, &Preferences::setTagFilterState);
         mainWidgetLayout->addWidget(item);
@@ -176,6 +184,22 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
         else
             removeTrackerStatusItem();
     });
+}
+
+void TransferListFiltersWidget::removeCategoryFromFilter(const QString &category)
+{
+    m_categoryFilterWidget->removeFromFilter(category);
+}
+
+void TransferListFiltersWidget::removeTagFromFilter(const Tag &tag)
+{
+    m_tagFilterWidget->removeFromFilter(tag);
+}
+
+void TransferListFiltersWidget::resetCategoryAndTagFilters()
+{
+    m_categoryFilterWidget->resetFilter();
+    m_tagFilterWidget->resetFilter();
 }
 
 void TransferListFiltersWidget::setDownloadTrackerFavicon(bool value)

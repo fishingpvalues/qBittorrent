@@ -57,6 +57,7 @@
 #include <QStatusBar>
 #include <QString>
 #include <QTimer>
+#include <QVBoxLayout>
 
 #ifdef Q_OS_WIN
 #include <QCryptographicHash>
@@ -78,6 +79,7 @@
 #include "base/utils/password.h"
 #include "base/version.h"
 #include "aboutdialog.h"
+#include "activefiltersbar.h"
 #include "autoexpandabledialog.h"
 #include "cookiesdialog.h"
 #include "desktopintegration.h"
@@ -274,7 +276,55 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
         on_actionOptions_triggered();
         m_options->showSpeedWidgetSetting();
     });
-    hSplitter->addWidget(m_transferListWidget);
+    auto *activeFiltersBar = new ActiveFiltersBar(m_transferListWidget, this);
+    connect(activeFiltersBar, &ActiveFiltersBar::categoryRemovalRequested, this, [this](const QString &category)
+    {
+        if (m_transferListFiltersWidget)
+        {
+            m_transferListFiltersWidget->removeCategoryFromFilter(category);
+            return;
+        }
+
+        QSet<QString> included = m_transferListWidget->includedCategories();
+        QSet<QString> excluded = m_transferListWidget->excludedCategories();
+        included.remove(category);
+        excluded.remove(category);
+        m_transferListWidget->applyCategoryFilter(included, excluded);
+    });
+    connect(activeFiltersBar, &ActiveFiltersBar::tagRemovalRequested, this, [this](const Tag &tag)
+    {
+        if (m_transferListFiltersWidget)
+        {
+            m_transferListFiltersWidget->removeTagFromFilter(tag);
+            return;
+        }
+
+        TagSet included = m_transferListWidget->includedTags();
+        TagSet excluded = m_transferListWidget->excludedTags();
+        included.remove(tag);
+        excluded.remove(tag);
+        m_transferListWidget->applyTagFilter(included, excluded);
+    });
+    connect(activeFiltersBar, &ActiveFiltersBar::resetRequested, this, [this]
+    {
+        if (m_transferListFiltersWidget)
+        {
+            m_transferListFiltersWidget->resetCategoryAndTagFilters();
+            return;
+        }
+
+        m_transferListWidget->applyCategoryFilter({}, {});
+        m_transferListWidget->applyTagFilter({}, {});
+    });
+
+    auto *transferListContainer = new QWidget(hSplitter);
+    auto *transferListLayout = new QVBoxLayout(transferListContainer);
+    transferListLayout->setContentsMargins(0, 0, 0, 0);
+    transferListLayout->setSpacing(0);
+    transferListLayout->addWidget(activeFiltersBar);
+    transferListLayout->addWidget(m_transferListWidget);
+
+    hSplitter->addWidget(transferListContainer);
     hSplitter->addWidget(m_propertiesWidget);
     m_splitter->addWidget(hSplitter);
     m_splitter->setCollapsible(0, false);
@@ -526,8 +576,8 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     else
     {
         m_transferListWidget->applyStatusFilter(pref->getTransSelFilter());
-        m_transferListWidget->applyCategoryFilter(QString());
-        m_transferListWidget->applyTagFilter(std::nullopt);
+        m_transferListWidget->applyCategoryFilter({}, {});
+        m_transferListWidget->applyTagFilter({}, {});
         m_transferListWidget->applyTrackerFilter({});
     }
 

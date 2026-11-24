@@ -1356,20 +1356,46 @@ void TransferListWidget::currentChanged(const QModelIndex &current, const QModel
     emit currentTorrentChanged(torrent);
 }
 
-void TransferListWidget::applyCategoryFilter(const QString &category)
+void TransferListWidget::applyCategoryFilter(const QSet<QString> &included, const QSet<QString> &excluded)
 {
-    if (category.isNull())
-        m_sortFilterModel->disableCategoryFilter();
-    else
-        m_sortFilterModel->setCategoryFilter(category);
+    if ((included == m_includedCategories) && (excluded == m_excludedCategories))
+        return;
+
+    m_includedCategories = included;
+    m_excludedCategories = excluded;
+    m_sortFilterModel->setCategoryFilter(included, excluded);
+    emit categoryOrTagFilterChanged();
 }
 
-void TransferListWidget::applyTagFilter(const std::optional<Tag> &tag)
+void TransferListWidget::applyTagFilter(const TagSet &included, const TagSet &excluded)
 {
-    if (!tag)
-        m_sortFilterModel->disableTagFilter();
-    else
-        m_sortFilterModel->setTagFilter(*tag);
+    if ((included == m_includedTags) && (excluded == m_excludedTags))
+        return;
+
+    m_includedTags = included;
+    m_excludedTags = excluded;
+    m_sortFilterModel->setTagFilter(included, excluded);
+    emit categoryOrTagFilterChanged();
+}
+
+QSet<QString> TransferListWidget::includedCategories() const
+{
+    return m_includedCategories;
+}
+
+QSet<QString> TransferListWidget::excludedCategories() const
+{
+    return m_excludedCategories;
+}
+
+TagSet TransferListWidget::includedTags() const
+{
+    return m_includedTags;
+}
+
+TagSet TransferListWidget::excludedTags() const
+{
+    return m_excludedTags;
 }
 
 void TransferListWidget::applyTrackerFilter(const std::optional<QString> &trackerHost)

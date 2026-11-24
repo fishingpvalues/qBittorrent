@@ -42,6 +42,7 @@ qt_wrap_ui(UI_HEADERS
 add_library(qbt_gui STATIC
     # headers
     aboutdialog.h
+    activefiltersbar.h
     addnewtorrentdialog.h
     addtorrentparamswidget.h
     advancedsettings.h
@@ -127,6 +128,7 @@ add_library(qbt_gui STATIC
     transferlistfilters/categoryfiltermodel.h
     transferlistfilters/categoryfilterproxymodel.h
     transferlistfilters/categoryfilterwidget.h
+    transferlistfilters/filtertreeview.h
     transferlistfilters/statusfilterwidget.h
     transferlistfilters/tagfiltermodel.h
     transferlistfilters/tagfilterproxymodel.h
@@ -153,6 +155,7 @@ add_library(qbt_gui STATIC
 
     # sources
     aboutdialog.cpp
+    activefiltersbar.cpp
     addnewtorrentdialog.cpp
     addtorrentparamswidget.cpp
     advancedsettings.cpp
@@ -233,6 +236,7 @@ add_library(qbt_gui STATIC
     transferlistfilters/categoryfiltermodel.cpp
     transferlistfilters/categoryfilterproxymodel.cpp
     transferlistfilters/categoryfilterwidget.cpp
+    transferlistfilters/filtertreeview.cpp
     transferlistfilters/statusfilterwidget.cpp
     transferlistfilters/tagfiltermodel.cpp
     transferlistfilters/tagfilterproxymodel.cpp

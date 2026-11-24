@@ -50,10 +50,8 @@ public:
     void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
     void setStatusFilter(TorrentFilter::Status status);
-    void setCategoryFilter(const QString &category);
-    void disableCategoryFilter();
-    void setTagFilter(const Tag &tag);
-    void disableTagFilter();
+    void setCategoryFilter(const QSet<QString> &included, const QSet<QString> &excluded);
+    void setTagFilter(const TagSet &included, const TagSet &excluded);
     void setTrackerFilter(const std::optional<QString> &trackerHost);
     void setAnnounceStatusFilter(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus);
 

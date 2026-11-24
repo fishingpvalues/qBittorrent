@@ -56,7 +56,7 @@ namespace
 }
 
 CategoryFilterWidget::CategoryFilterWidget(QWidget *parent)
-    : QTreeView(parent)
+    : FilterTreeView(parent)
 {
     auto *proxyModel = new CategoryFilterProxyModel(this);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
@@ -79,8 +79,11 @@ CategoryFilterWidget::CategoryFilterWidget(QWidget *parent)
     connect(this, &QTreeView::collapsed, this, &CategoryFilterWidget::callUpdateGeometry);
     connect(this, &QTreeView::expanded, this, &CategoryFilterWidget::callUpdateGeometry);
     connect(this, &QWidget::customContextMenuRequested, this, &CategoryFilterWidget::showMenu);
-    connect(selectionModel(), &QItemSelectionModel::currentRowChanged
-            , this, &CategoryFilterWidget::onCurrentRowChanged);
+    initFilter();
+    connect(this, &FilterTreeView::filterChanged, this, [this]
+    {
+        emit categoryFilterChanged(includedCategories(), excludedCategories());
+    });
     connect(model(), &QAbstractItemModel::rowsRemoved, this, [this]
     {
         adjustIndentation();
@@ -97,17 +100,40 @@ CategoryFilterWidget::CategoryFilterWidget(QWidget *parent)
 
 QString CategoryFilterWidget::currentCategory() const
 {
-    QModelIndex current;
-    const auto selectedRows = selectionModel()->selectedRows();
-    if (!selectedRows.isEmpty())
-        current = selectedRows.first();
-
-    return getCategoryFilter(static_cast<CategoryFilterProxyModel *>(model()), current);
+    return getCategoryFilter(static_cast<CategoryFilterProxyModel *>(model()), currentIndex());
 }
 
-void CategoryFilterWidget::onCurrentRowChanged(const QModelIndex &current, [[maybe_unused]] const QModelIndex &previous)
+QSet<QString> CategoryFilterWidget::includedCategories() const
 {
-    emit categoryChanged(getCategoryFilter(static_cast<CategoryFilterProxyModel *>(model()), current));
+    const auto *proxyModel = static_cast<CategoryFilterProxyModel *>(model());
+
+    QSet<QString> categories;
+    for (const QModelIndex &index : asConst(includedIndexes()))
+        categories.insert(getCategoryFilter(proxyModel, index));
+
+    return categories;
+}
+
+QSet<QString> CategoryFilterWidget::excludedCategories() const
+{
+    const auto *proxyModel = static_cast<CategoryFilterProxyModel *>(model());
+
+    QSet<QString> categories;
+    for (const QModelIndex &index : asConst(excludedIndexes()))
+        categories.insert(getCategoryFilter(proxyModel, index));
+
+    return categories;
+}
+
+void CategoryFilterWidget::removeFromFilter(const QString &categoryName)
+{
+    const auto *proxyModel = static_cast<CategoryFilterProxyModel *>(model());
+    const QModelIndex index = categoryName.isEmpty()
+        ? model()->index(1, 0)  // Uncategorized
+        : proxyModel->index(categoryName);
+
+    setIncluded(index, false);
+    setExcluded(index, false);
 }
 
 void CategoryFilterWidget::showMenu()
@@ -115,11 +141,12 @@ void CategoryFilterWidget::showMenu()
     QMenu *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
+    addFilterActions(menu, currentIndex());
+
     menu->addAction(UIThemeManager::instance()->getIcon(u"list-add"_s), tr("Add category...")
         , this, &CategoryFilterWidget::addCategory);
 
-    const auto selectedRows = selectionModel()->selectedRows();
-    if (!selectedRows.empty() && !CategoryFilterModel::isSpecialItem(selectedRows.first()))
+    if (currentIndex().isValid() && !CategoryFilterModel::isSpecialItem(currentIndex()))
     {
         menu->addAction(UIThemeManager::instance()->getIcon(u"list-add"_s), tr("Add subcategory...")
             , this, &CategoryFilterWidget::addSubcategory);
@@ -171,7 +198,7 @@ QSize CategoryFilterWidget::minimumSizeHint() const
 
 void CategoryFilterWidget::rowsInserted(const QModelIndex &parent, const int start, const int end)
 {
-    QTreeView::rowsInserted(parent, start, end);
+    FilterTreeView::rowsInserted(parent, start, end);
 
     if (parent.isValid())
         adjustIndentation();
@@ -225,11 +252,11 @@ void CategoryFilterWidget::editCategory()
 
 void CategoryFilterWidget::removeCategory()
 {
-    const auto selectedRows = selectionModel()->selectedRows();
-    if (!selectedRows.empty() && !CategoryFilterModel::isSpecialItem(selectedRows.first()))
+    const QModelIndex index = currentIndex();
+    if (index.isValid() && !CategoryFilterModel::isSpecialItem(index))
     {
         BitTorrent::Session::instance()->removeCategory(
-                    static_cast<CategoryFilterProxyModel *>(model())->categoryName(selectedRows.first()));
+                    static_cast<CategoryFilterProxyModel *>(model())->categoryName(index));
         updateGeometry();
     }
 }

@@ -42,11 +42,9 @@
 
 namespace
 {
-    std::optional<Tag> getTagFilter(const TagFilterProxyModel *const model, const QModelIndex &index)
+    // Returns empty tag for "Untagged" item
+    Tag getTagFilter(const TagFilterProxyModel *const model, const QModelIndex &index)
     {
-        if (!index.isValid() || (index.row() == 0))
-            return std::nullopt; // All tags
-
         if (index.row() == 1)
             return Tag();  // Untagged
 
@@ -55,7 +53,7 @@ namespace
 }
 
 TagFilterWidget::TagFilterWidget(QWidget *parent)
-    : QTreeView(parent)
+    : FilterTreeView(parent)
 {
     auto *proxyModel = new TagFilterProxyModel(this);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
@@ -79,24 +77,44 @@ TagFilterWidget::TagFilterWidget(QWidget *parent)
     connect(this, &TagFilterWidget::collapsed, this, &TagFilterWidget::callUpdateGeometry);
     connect(this, &TagFilterWidget::expanded, this, &TagFilterWidget::callUpdateGeometry);
     connect(this, &TagFilterWidget::customContextMenuRequested, this, &TagFilterWidget::showMenu);
-    connect(selectionModel(), &QItemSelectionModel::currentRowChanged, this
-            , &TagFilterWidget::onCurrentRowChanged);
+    initFilter();
+    connect(this, &FilterTreeView::filterChanged, this, [this]
+    {
+        emit tagFilterChanged(includedTags(), excludedTags());
+    });
     connect(model(), &QAbstractItemModel::modelReset, this, &TagFilterWidget::callUpdateGeometry);
 }
 
-std::optional<Tag> TagFilterWidget::currentTag() const
+TagSet TagFilterWidget::includedTags() const
 {
-    QModelIndex current;
-    const auto selectedRows = selectionModel()->selectedRows();
-    if (!selectedRows.isEmpty())
-        current = selectedRows.first();
+    const auto *proxyModel = static_cast<TagFilterProxyModel *>(model());
 
-    return getTagFilter(static_cast<TagFilterProxyModel *>(model()), current);
+    TagSet tags;
+    for (const QModelIndex &index : asConst(includedIndexes()))
+        tags.insert(getTagFilter(proxyModel, index));
+
+    return tags;
 }
 
-void TagFilterWidget::onCurrentRowChanged(const QModelIndex &current, [[maybe_unused]] const QModelIndex &previous)
+TagSet TagFilterWidget::excludedTags() const
 {
-    emit tagChanged(getTagFilter(static_cast<TagFilterProxyModel *>(model()), current));
+    const auto *proxyModel = static_cast<TagFilterProxyModel *>(model());
+
+    TagSet tags;
+    for (const QModelIndex &index : asConst(excludedIndexes()))
+        tags.insert(getTagFilter(proxyModel, index));
+
+    return tags;
+}
+
+void TagFilterWidget::removeFromFilter(const Tag &tag)
+{
+    const QModelIndex index = tag.isEmpty()
+        ? model()->index(1, 0)  // Untagged
+        : static_cast<TagFilterProxyModel *>(model())->index(tag);
+
+    setIncluded(index, false);
+    setExcluded(index, false);
 }
 
 void TagFilterWidget::showMenu()
@@ -104,11 +122,12 @@ void TagFilterWidget::showMenu()
     QMenu *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
+    addFilterActions(menu, currentIndex());
+
     menu->addAction(UIThemeManager::instance()->getIcon(u"list-add"_s), tr("Add tag...")
         , this, &TagFilterWidget::addTag);
 
-    const auto selectedRows = selectionModel()->selectedRows();
-    if (!selectedRows.empty() && !TagFilterModel::isSpecialItem(selectedRows.first()))
+    if (currentIndex().isValid() && !TagFilterModel::isSpecialItem(currentIndex()))
     {
         menu->addAction(UIThemeManager::instance()->getIcon(u"edit-clear"_s, u"list-remove"_s), tr("Remove tag")
             , this, &TagFilterWidget::removeTag);
@@ -154,7 +173,7 @@ QSize TagFilterWidget::minimumSizeHint() const
 
 void TagFilterWidget::rowsInserted(const QModelIndex &parent, int start, int end)
 {
-    QTreeView::rowsInserted(parent, start, end);
+    FilterTreeView::rowsInserted(parent, start, end);
     updateGeometry();
 }
 
@@ -197,11 +216,11 @@ void TagFilterWidget::addTag()
 
 void TagFilterWidget::removeTag()
 {
-    const auto selectedRows = selectionModel()->selectedRows();
-    if (!selectedRows.empty() && !TagFilterModel::isSpecialItem(selectedRows.first()))
+    const QModelIndex index = currentIndex();
+    if (index.isValid() && !TagFilterModel::isSpecialItem(index))
     {
         BitTorrent::Session::instance()->removeTag(
-            static_cast<TagFilterProxyModel *>(model())->tag(selectedRows.first()));
+            static_cast<TagFilterProxyModel *>(model())->tag(index));
         updateGeometry();
     }
 }
