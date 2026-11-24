@@ -35,6 +35,7 @@
 #include "base/path.h"
 #include "basefilterwidget.h"
 
+class FilterSelectionHandler;
 class TransferListWidget;
 
 namespace BitTorrent
@@ -58,6 +59,10 @@ public:
     ~TrackersFilterWidget() override;
 
     void setDownloadTrackerFavicon(bool value);
+    // Pass empty string for "Trackerless" item
+    void removeFromFilter(const QString &trackerHost);
+    void resetFilter();
+    void resetAnnounceStatusFilter();
 
 private slots:
     void handleFavicoDownloadFinished(const Net::DownloadResult &result);
@@ -97,6 +102,7 @@ private:
         QListWidgetItem *item = nullptr;
     };
 
+    FilterSelectionHandler *m_filterHandler = nullptr;
     QHash<QString, TrackerData> m_trackers;   // <tracker host, tracker data>
     QSet<const BitTorrent::Torrent *> m_errors;
     QSet<const BitTorrent::Torrent *> m_trackerErrors;

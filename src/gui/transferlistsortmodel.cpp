@@ -160,14 +160,14 @@ void TransferListSortModel::setTagFilter(const TagSet &included, const TagSet &e
 #endif
 }
 
-void TransferListSortModel::setTrackerFilter(const std::optional<QString> &trackerHost)
+void TransferListSortModel::setTrackerFilter(const QSet<QString> &included, const QSet<QString> &excluded)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     beginFilterChange();
-    m_filter.setTrackerHost(trackerHost);
+    m_filter.setTrackerHosts(included, excluded);
     endFilterChange(Direction::Rows);
 #else
-    if (m_filter.setTrackerHost(trackerHost))
+    if (m_filter.setTrackerHosts(included, excluded))
         invalidateRowsFilter();
 #endif
 }

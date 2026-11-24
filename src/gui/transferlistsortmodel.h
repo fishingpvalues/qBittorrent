@@ -52,7 +52,7 @@ public:
     void setStatusFilter(TorrentFilter::Status status);
     void setCategoryFilter(const QSet<QString> &included, const QSet<QString> &excluded);
     void setTagFilter(const TagSet &included, const TagSet &excluded);
-    void setTrackerFilter(const std::optional<QString> &trackerHost);
+    void setTrackerFilter(const QSet<QString> &included, const QSet<QString> &excluded);
     void setAnnounceStatusFilter(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus);
 
 private:

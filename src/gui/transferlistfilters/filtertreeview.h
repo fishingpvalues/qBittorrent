@@ -28,18 +28,13 @@
 
 #pragma once
 
-#include <QList>
-#include <QPersistentModelIndex>
 #include <QTreeView>
 
-class QItemSelection;
 class QMenu;
+class FilterSelectionHandler;
 
 // Tree view for sidebar filters that can include and exclude several items at once.
-// * Click: filter by the clicked item only
-// * Ctrl+click (Cmd+click on macOS): include/stop including the item
-// * Alt+click (Option+click on macOS): exclude/stop excluding the item
-// The first top level row ("All") is selected when no item is included.
+// See FilterSelectionHandler for the supported interactions.
 class FilterTreeView : public QTreeView
 {
     Q_OBJECT
@@ -48,10 +43,6 @@ class FilterTreeView : public QTreeView
 public:
     QModelIndexList includedIndexes() const;
     QModelIndexList excludedIndexes() const;
-    bool isIncluded(const QModelIndex &index) const;
-    bool isExcluded(const QModelIndex &index) const;
-    bool isFilterActive() const;
-
     void setIncluded(const QModelIndex &index, bool included);
     void setExcluded(const QModelIndex &index, bool excluded);
     void resetFilter();
@@ -65,17 +56,7 @@ protected:
     // Must be called after the model is set
     void initFilter();
     void addFilterActions(QMenu *menu, const QModelIndex &index);
-    void mousePressEvent(QMouseEvent *event) override;
 
 private:
-    bool isAllIndex(const QModelIndex &index) const;
-    bool isMultiFilter() const;
-    void onSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
-    void validateFilter();
-    void selectAllIfNothingIncluded();
-    void notifyFilterChanged();
-
-    QList<QPersistentModelIndex> m_excludedIndexes;
-    bool m_isUpdatingSelection = false;
-    quint64 m_filterRevision = 0;
+    FilterSelectionHandler *m_filterHandler = nullptr;
 };

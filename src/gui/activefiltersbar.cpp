@@ -48,9 +48,9 @@ namespace
     // Chips that don't fit are moved to the overflow menu
     const int MAX_VISIBLE_CHIPS = 6;
 
-    QStringList sortedCategories(const QSet<QString> &categories)
+    QStringList sortedNames(const QSet<QString> &names)
     {
-        QStringList list {categories.cbegin(), categories.cend()};
+        QStringList list {names.cbegin(), names.cend()};
         std::ranges::sort(list, Utils::Compare::NaturalLessThan<Qt::CaseInsensitive>());
         return list;
     }
@@ -78,12 +78,13 @@ ActiveFiltersBar::ActiveFiltersBar(TransferListWidget *transferList, QWidget *pa
 
     auto *resetButton = new QToolButton(this);
     resetButton->setText(tr("Clear filters"));
-    resetButton->setToolTip(tr("Remove all category and tag filters"));
+    resetButton->setToolTip(tr("Remove all category, tag and tracker filters"));
     resetButton->setAutoRaise(true);
     connect(resetButton, &QToolButton::clicked, this, &ActiveFiltersBar::resetRequested);
     layout->addWidget(resetButton);
 
     connect(m_transferList, &TransferListWidget::categoryOrTagFilterChanged, this, &ActiveFiltersBar::rebuild);
+    connect(m_transferList, &TransferListWidget::trackerFilterChanged, this, &ActiveFiltersBar::rebuild);
 
     const QAbstractItemModel *visibleModel = m_transferList->model();
     connect(visibleModel, &QAbstractItemModel::rowsInserted, this, &ActiveFiltersBar::updateCounter);
@@ -111,7 +112,7 @@ void ActiveFiltersBar::rebuild()
 
     const auto addCategoryChips = [this, &chips](const QSet<QString> &categories, const bool isExcluded)
     {
-        for (const QString &category : asConst(sortedCategories(categories)))
+        for (const QString &category : asConst(sortedNames(categories)))
         {
             const QString name = category.isEmpty() ? tr("Uncategorized") : category;
             chips.append({.text = name
@@ -139,10 +140,45 @@ void ActiveFiltersBar::rebuild()
         }
     };
 
+    const auto addTrackerChips = [this, &chips](const QSet<QString> &trackerHosts, const bool isExcluded)
+    {
+        for (const QString &trackerHost : asConst(sortedNames(trackerHosts)))
+        {
+            const QString name = trackerHost.isEmpty() ? tr("Trackerless") : trackerHost;
+            chips.append({.text = name
+                , .toolTip = (isExcluded
+                    ? tr("Hiding torrents with tracker \"%1\". Click to remove this filter.")
+                    : tr("Showing torrents with tracker \"%1\". Click to remove this filter.")).arg(name)
+                , .iconID = (isExcluded ? u"list-remove"_s : u"trackers"_s)
+                , .isExcluded = isExcluded
+                , .remove = [this, trackerHost] { emit trackerRemovalRequested(trackerHost); }});
+        }
+    };
+
     addCategoryChips(m_transferList->includedCategories(), false);
     addCategoryChips(m_transferList->excludedCategories(), true);
     addTagChips(m_transferList->includedTags(), false);
     addTagChips(m_transferList->excludedTags(), true);
+    addTrackerChips(m_transferList->includedTrackerHosts(), false);
+    addTrackerChips(m_transferList->excludedTrackerHosts(), true);
+
+    if (const std::optional<BitTorrent::TorrentAnnounceStatus> announceStatus = m_transferList->announceStatusFilter()
+            ; announceStatus && *announceStatus)
+    {
+        QString name;
+        if (announceStatus->testFlag(BitTorrent::TorrentAnnounceStatusFlag::HasWarning))
+            name = tr("Warning");
+        else if (announceStatus->testFlag(BitTorrent::TorrentAnnounceStatusFlag::HasTrackerError))
+            name = tr("Tracker error");
+        else
+            name = tr("Other error");
+
+        chips.append({.text = name
+            , .toolTip = tr("Showing torrents with tracker status \"%1\". Click to remove this filter.").arg(name)
+            , .iconID = u"trackers"_s
+            , .isExcluded = false
+            , .remove = [this] { emit announceStatusRemovalRequested(); }});
+    }
 
     setVisible(!chips.isEmpty());
     if (chips.isEmpty())

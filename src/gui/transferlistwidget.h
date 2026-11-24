@@ -30,6 +30,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 
 #include <QtContainerFwd>
 #include <QSet>
@@ -37,6 +38,7 @@
 #include <QTreeView>
 
 #include "base/bittorrent/infohash.h"
+#include "base/bittorrent/torrentannouncestatus.h"
 #include "base/tagset.h"
 #include "guiapplicationcomponent.h"
 #include "transferlistmodel.h"
@@ -108,7 +110,11 @@ public slots:
     QSet<QString> excludedCategories() const;
     TagSet includedTags() const;
     TagSet excludedTags() const;
-    void applyTrackerFilter(const std::optional<QString> &trackerHost);
+    QSet<QString> includedTrackerHosts() const;
+    QSet<QString> excludedTrackerHosts() const;
+    std::optional<BitTorrent::TorrentAnnounceStatus> announceStatusFilter() const;
+    // Pass empty string for trackerless torrents
+    void applyTrackerFilter(const QSet<QString> &included, const QSet<QString> &excluded);
     void applyAnnounceStatusFilter(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus);
     void previewFile(const Path &filePath);
     void renameSelectedTorrent();
@@ -116,6 +122,7 @@ public slots:
 signals:
     void currentTorrentChanged(BitTorrent::Torrent *torrent);
     void categoryOrTagFilterChanged();
+    void trackerFilterChanged();
 
 private slots:
     void torrentDoubleClicked();
@@ -157,4 +164,7 @@ private:
     QSet<QString> m_excludedCategories;
     TagSet m_includedTags;
     TagSet m_excludedTags;
+    QSet<QString> m_includedTrackerHosts;
+    QSet<QString> m_excludedTrackerHosts;
+    std::optional<BitTorrent::TorrentAnnounceStatus> m_announceStatus;
 };

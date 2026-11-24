@@ -305,16 +305,39 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
         excluded.remove(tag);
         m_transferListWidget->applyTagFilter(included, excluded);
     });
+    connect(activeFiltersBar, &ActiveFiltersBar::trackerRemovalRequested, this, [this](const QString &trackerHost)
+    {
+        if (m_transferListFiltersWidget)
+        {
+            m_transferListFiltersWidget->removeTrackerFromFilter(trackerHost);
+            return;
+        }
+
+        QSet<QString> included = m_transferListWidget->includedTrackerHosts();
+        QSet<QString> excluded = m_transferListWidget->excludedTrackerHosts();
+        included.remove(trackerHost);
+        excluded.remove(trackerHost);
+        m_transferListWidget->applyTrackerFilter(included, excluded);
+    });
+    connect(activeFiltersBar, &ActiveFiltersBar::announceStatusRemovalRequested, this, [this]
+    {
+        if (m_transferListFiltersWidget)
+            m_transferListFiltersWidget->resetAnnounceStatusFilter();
+        else
+            m_transferListWidget->applyAnnounceStatusFilter(std::nullopt);
+    });
     connect(activeFiltersBar, &ActiveFiltersBar::resetRequested, this, [this]
     {
         if (m_transferListFiltersWidget)
         {
-            m_transferListFiltersWidget->resetCategoryAndTagFilters();
+            m_transferListFiltersWidget->resetFilters();
             return;
         }
 
         m_transferListWidget->applyCategoryFilter({}, {});
         m_transferListWidget->applyTagFilter({}, {});
+        m_transferListWidget->applyTrackerFilter({}, {});
+        m_transferListWidget->applyAnnounceStatusFilter(std::nullopt);
     });
 
     auto *transferListContainer = new QWidget(hSplitter);
@@ -578,7 +601,7 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
         m_transferListWidget->applyStatusFilter(pref->getTransSelFilter());
         m_transferListWidget->applyCategoryFilter({}, {});
         m_transferListWidget->applyTagFilter({}, {});
-        m_transferListWidget->applyTrackerFilter({});
+        m_transferListWidget->applyTrackerFilter({}, {});
     }
 
     // Start watching the executable for updates

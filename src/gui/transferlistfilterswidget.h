@@ -30,12 +30,14 @@
 #pragma once
 
 #include <QtContainerFwd>
+#include <QPointer>
 #include <QWidget>
 
 class CategoryFilterWidget;
 class Tag;
 class TagFilterWidget;
 class TrackersFilterWidget;
+class TrackerStatusFilterWidget;
 class TransferListWidget;
 
 namespace BitTorrent
@@ -54,12 +56,15 @@ public:
     void setDownloadTrackerFavicon(bool value);
     void removeCategoryFromFilter(const QString &category);
     void removeTagFromFilter(const Tag &tag);
-    void resetCategoryAndTagFilters();
+    void removeTrackerFromFilter(const QString &trackerHost);
+    void resetAnnounceStatusFilter();
+    void resetFilters();
 
 private:
     TransferListWidget *m_transferList = nullptr;
     CategoryFilterWidget *m_categoryFilterWidget = nullptr;
     TagFilterWidget *m_tagFilterWidget = nullptr;
     TrackersFilterWidget *m_trackersFilterWidget = nullptr;
+    QPointer<TrackerStatusFilterWidget> m_trackerStatusFilterWidget;
     bool m_useSeparateTrackerStatusFilter = false;
 };

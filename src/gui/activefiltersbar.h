@@ -38,7 +38,7 @@ class QToolButton;
 class Tag;
 class TransferListWidget;
 
-// Shows the active category and tag filters above the transfer list,
+// Shows the active category, tag and tracker filters above the transfer list,
 // so that they stay visible even if the filters sidebar is hidden or scrolled.
 class ActiveFiltersBar final : public QWidget
 {
@@ -51,6 +51,8 @@ public:
 signals:
     void categoryRemovalRequested(const QString &category);
     void tagRemovalRequested(const Tag &tag);
+    void trackerRemovalRequested(const QString &trackerHost);
+    void announceStatusRemovalRequested();
     void resetRequested();
 
 private:

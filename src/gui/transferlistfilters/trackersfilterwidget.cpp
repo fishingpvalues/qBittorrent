@@ -47,6 +47,7 @@
 #include "base/utils/fs.h"
 #include "gui/transferlistwidget.h"
 #include "gui/uithememanager.h"
+#include "filterselectionhandler.h"
 
 namespace
 {
@@ -144,6 +145,18 @@ TrackersFilterWidget::TrackersFilterWidget(QWidget *parent, TransferListWidget *
     : BaseFilterWidget(parent, transferList)
     , m_downloadTrackerFavicon {downloadFavicon}
 {
+    // Tracker hosts can be included and excluded, tracker statuses can only be chosen alone
+    m_filterHandler = new FilterSelectionHandler(this, [this](const QModelIndex &index) -> bool
+    {
+        return m_handleTrackerStatuses && !index.parent().isValid()
+            && (index.row() >= TRACKERERROR_ROW) && (index.row() <= WARNING_ROW);
+    });
+    disconnect(this, &QListWidget::currentRowChanged, this, nullptr);
+    connect(m_filterHandler, &FilterSelectionHandler::filterChanged, this, [this]
+    {
+        applyFilter(currentRow());
+    });
+
     auto *allTrackersItem = new QListWidgetItem(this);
     allTrackersItem->setData(Qt::DisplayRole, formatItemText(ALL_ROW, 0));
     allTrackersItem->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"trackers"_s, u"network-server"_s));
@@ -302,8 +315,9 @@ void TrackersFilterWidget::decreaseTorrentsCount(const QString &trackerHost)
 
     if ((trackerData.torrentsCount == 0) && (trackerHost != NULL_HOST))
     {
+        // The filter gets updated once the item is removed
         if (currentItem() == trackerData.item)
-            setCurrentRow(0, QItemSelectionModel::SelectCurrent);
+            setCurrentRow(0, QItemSelectionModel::NoUpdate);
 #ifdef Q_OS_MACOS
         // Use takeItem() to detach the item from the widget before deleting.
         // Directly deleting a QListWidgetItem triggers model's endRemoveRows()
@@ -448,11 +462,8 @@ void TrackersFilterWidget::enableTrackerStatusItems(const bool value)
     }
     else
     {
-        if (const int row = currentRow();
-                (row == WARNING_ROW) || (row == TRACKERERROR_ROW) || (row == OTHERERROR_ROW))
-        {
-            setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
-        }
+        if (m_filterHandler && m_filterHandler->singleChoiceIndex().isValid())
+            m_filterHandler->resetFilter();
 
         // Need to be removed in reversed order
         takeItem(WARNING_ROW);
@@ -541,6 +552,8 @@ void TrackersFilterWidget::showMenu()
     QMenu *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
+    m_filterHandler->addFilterActions(menu, currentIndex());
+
     if (currentRow() >= numSpecialRows())
     {
         menu->addAction(UIThemeManager::instance()->getIcon(u"edit-clear"_s, u"list-remove"_s), tr("Remove tracker")
@@ -560,60 +573,76 @@ void TrackersFilterWidget::showMenu()
     menu->popup(QCursor::pos());
 }
 
-void TrackersFilterWidget::applyFilter(const int row)
+void TrackersFilterWidget::applyFilter([[maybe_unused]] const int row)
 {
-    if (m_handleTrackerStatuses)
+    // The filter is disabled while the widget is hidden
+    if (isHidden())
     {
-        switch (row)
+        transferList()->applyTrackerFilter({}, {});
+        if (m_handleTrackerStatuses)
+            transferList()->applyAnnounceStatusFilter(std::nullopt);
+        return;
+    }
+
+    if (const QModelIndex statusIndex = m_filterHandler->singleChoiceIndex(); statusIndex.isValid())
+    {
+        switch (statusIndex.row())
         {
-        case ALL_ROW:
-            transferList()->applyTrackerFilter(std::nullopt);
-            transferList()->applyAnnounceStatusFilter(std::nullopt);
-            break;
-
-        case TRACKERLESS_ROW:
-            transferList()->applyTrackerFilter(NULL_HOST);
-            transferList()->applyAnnounceStatusFilter(std::nullopt);
-            break;
-
         case OTHERERROR_ROW:
             transferList()->applyAnnounceStatusFilter(BitTorrent::TorrentAnnounceStatusFlag::HasOtherError);
-            transferList()->applyTrackerFilter(std::nullopt);
             break;
-
         case TRACKERERROR_ROW:
             transferList()->applyAnnounceStatusFilter(BitTorrent::TorrentAnnounceStatusFlag::HasTrackerError);
-            transferList()->applyTrackerFilter(std::nullopt);
             break;
-
         case WARNING_ROW:
             transferList()->applyAnnounceStatusFilter(BitTorrent::TorrentAnnounceStatusFlag::HasWarning);
-            transferList()->applyTrackerFilter(std::nullopt);
             break;
-
         default:
-            transferList()->applyTrackerFilter(trackerFromRow(row));
-            transferList()->applyAnnounceStatusFilter(std::nullopt);
+            Q_UNREACHABLE();
             break;
         }
+        transferList()->applyTrackerFilter({}, {});
+        return;
     }
-    else
+
+    const auto hostFromIndex = [this](const QModelIndex &index) -> QString
     {
-        switch (row)
-        {
-        case ALL_ROW:
-            transferList()->applyTrackerFilter(std::nullopt);
-            break;
+        return (index.row() == TRACKERLESS_ROW) ? NULL_HOST : trackerFromRow(index.row());
+    };
 
-        case TRACKERLESS_ROW:
-            transferList()->applyTrackerFilter(NULL_HOST);
-            break;
+    QSet<QString> included;
+    for (const QModelIndex &index : asConst(m_filterHandler->includedIndexes()))
+        included.insert(hostFromIndex(index));
 
-        default:
-            transferList()->applyTrackerFilter(trackerFromRow(row));
-            break;
-        }
-    }
+    QSet<QString> excluded;
+    for (const QModelIndex &index : asConst(m_filterHandler->excludedIndexes()))
+        excluded.insert(hostFromIndex(index));
+
+    if (m_handleTrackerStatuses)
+        transferList()->applyAnnounceStatusFilter(std::nullopt);
+    transferList()->applyTrackerFilter(included, excluded);
+}
+
+void TrackersFilterWidget::removeFromFilter(const QString &trackerHost)
+{
+    const int trackerRow = (trackerHost == NULL_HOST) ? TRACKERLESS_ROW : rowFromTracker(trackerHost);
+    if (trackerRow < 0)
+        return;
+
+    const QModelIndex index = model()->index(trackerRow, 0);
+    m_filterHandler->setIncluded(index, false);
+    m_filterHandler->setExcluded(index, false);
+}
+
+void TrackersFilterWidget::resetFilter()
+{
+    m_filterHandler->resetFilter();
+}
+
+void TrackersFilterWidget::resetAnnounceStatusFilter()
+{
+    if (m_filterHandler->singleChoiceIndex().isValid())
+        m_filterHandler->resetFilter();
 }
 
 void TrackersFilterWidget::handleTorrentsLoaded(const QList<BitTorrent::Torrent *> &torrents)

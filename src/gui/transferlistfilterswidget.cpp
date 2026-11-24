@@ -154,6 +154,7 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     const auto createTrackerStatusItem = [this, mainWidgetLayout, trackerStatusItemPos, pref]
     {
         auto *trackerStatusFilterWidget = new TrackerStatusFilterWidget(this, m_transferList);
+        m_trackerStatusFilterWidget = trackerStatusFilterWidget;
         auto *item = new TransferListFiltersWidgetItem(tr("Tracker status"), trackerStatusFilterWidget, this);
         item->setChecked(pref->getTrackerStatusFilterState());
         connect(item, &TransferListFiltersWidgetItem::toggled, trackerStatusFilterWidget, &TrackerStatusFilterWidget::toggleFilter);
@@ -196,10 +197,25 @@ void TransferListFiltersWidget::removeTagFromFilter(const Tag &tag)
     m_tagFilterWidget->removeFromFilter(tag);
 }
 
-void TransferListFiltersWidget::resetCategoryAndTagFilters()
+void TransferListFiltersWidget::removeTrackerFromFilter(const QString &trackerHost)
+{
+    m_trackersFilterWidget->removeFromFilter(trackerHost);
+}
+
+void TransferListFiltersWidget::resetAnnounceStatusFilter()
+{
+    if (m_trackerStatusFilterWidget)
+        m_trackerStatusFilterWidget->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
+    else
+        m_trackersFilterWidget->resetAnnounceStatusFilter();
+}
+
+void TransferListFiltersWidget::resetFilters()
 {
     m_categoryFilterWidget->resetFilter();
     m_tagFilterWidget->resetFilter();
+    m_trackersFilterWidget->resetFilter();
+    resetAnnounceStatusFilter();
 }
 
 void TransferListFiltersWidget::setDownloadTrackerFavicon(bool value)

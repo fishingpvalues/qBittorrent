@@ -1398,14 +1398,40 @@ TagSet TransferListWidget::excludedTags() const
     return m_excludedTags;
 }
 
-void TransferListWidget::applyTrackerFilter(const std::optional<QString> &trackerHost)
+void TransferListWidget::applyTrackerFilter(const QSet<QString> &included, const QSet<QString> &excluded)
 {
-    m_sortFilterModel->setTrackerFilter(trackerHost);
+    if ((included == m_includedTrackerHosts) && (excluded == m_excludedTrackerHosts))
+        return;
+
+    m_includedTrackerHosts = included;
+    m_excludedTrackerHosts = excluded;
+    m_sortFilterModel->setTrackerFilter(included, excluded);
+    emit trackerFilterChanged();
+}
+
+QSet<QString> TransferListWidget::includedTrackerHosts() const
+{
+    return m_includedTrackerHosts;
+}
+
+QSet<QString> TransferListWidget::excludedTrackerHosts() const
+{
+    return m_excludedTrackerHosts;
 }
 
 void TransferListWidget::applyAnnounceStatusFilter(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus)
 {
+    if (announceStatus == m_announceStatus)
+        return;
+
+    m_announceStatus = announceStatus;
     m_sortFilterModel->setAnnounceStatusFilter(announceStatus);
+    emit trackerFilterChanged();
+}
+
+std::optional<BitTorrent::TorrentAnnounceStatus> TransferListWidget::announceStatusFilter() const
+{
+    return m_announceStatus;
 }
 
 void TransferListWidget::applyFilter(const QString &name, const TransferListModel::Column &type)

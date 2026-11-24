@@ -128,6 +128,7 @@ add_library(qbt_gui STATIC
     transferlistfilters/categoryfiltermodel.h
     transferlistfilters/categoryfilterproxymodel.h
     transferlistfilters/categoryfilterwidget.h
+    transferlistfilters/filterselectionhandler.h
     transferlistfilters/filtertreeview.h
     transferlistfilters/statusfilterwidget.h
     transferlistfilters/tagfiltermodel.h
@@ -236,6 +237,7 @@ add_library(qbt_gui STATIC
     transferlistfilters/categoryfiltermodel.cpp
     transferlistfilters/categoryfilterproxymodel.cpp
     transferlistfilters/categoryfilterwidget.cpp
+    transferlistfilters/filterselectionhandler.cpp
     transferlistfilters/filtertreeview.cpp
     transferlistfilters/statusfilterwidget.cpp
     transferlistfilters/tagfiltermodel.cpp
