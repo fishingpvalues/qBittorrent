@@ -59,13 +59,13 @@ TorrentFilter::TorrentFilter(const Status status, const std::optional<TorrentIDS
         , const std::optional<Tag> &tag, const std::optional<bool> &isPrivate, const std::optional<QString> &trackerHost
         , const std::optional<TorrentAnnounceStatus> &announceStatus)
     : m_status {status}
-    , m_category {category}
-    , m_tag {tag}
     , m_idSet {idSet}
     , m_private {isPrivate}
     , m_trackerHost {trackerHost}
     , m_announceStatus {announceStatus}
 {
+    setCategory(category);
+    setTag(tag);
 }
 
 bool TorrentFilter::setStatus(const Status status)
@@ -92,9 +92,18 @@ bool TorrentFilter::setTorrentIDSet(const std::optional<TorrentIDSet> &idSet)
 
 bool TorrentFilter::setCategory(const std::optional<QString> &category)
 {
-    if (m_category != category)
+    if (!category)
+        return setCategories({}, {});
+
+    return setCategories({*category}, {});
+}
+
+bool TorrentFilter::setCategories(const QSet<QString> &included, const QSet<QString> &excluded)
+{
+    if ((m_includedCategories != included) || (m_excludedCategories != excluded))
     {
-        m_category = category;
+        m_includedCategories = included;
+        m_excludedCategories = excluded;
         return true;
     }
 
@@ -103,9 +112,18 @@ bool TorrentFilter::setCategory(const std::optional<QString> &category)
 
 bool TorrentFilter::setTag(const std::optional<Tag> &tag)
 {
-    if (m_tag != tag)
+    if (!tag)
+        return setTags({}, {});
+
+    return setTags({*tag}, {});
+}
+
+bool TorrentFilter::setTags(const TagSet &included, const TagSet &excluded)
+{
+    if ((m_includedTags != included) || (m_excludedTags != excluded))
     {
-        m_tag = tag;
+        m_includedTags = included;
+        m_excludedTags = excluded;
         return true;
     }
 
@@ -210,22 +228,33 @@ bool TorrentFilter::matchHash(const Torrent *const torrent) const
 
 bool TorrentFilter::matchCategory(const Torrent *const torrent) const
 {
-    if (!m_category)
-        return true;
+    const auto belongsToCategory = [torrent](const QString &category) -> bool
+    {
+        // Empty category is a special value to indicate we're filtering for uncategorized torrents.
+        return torrent->belongsToCategory(category);
+    };
 
-    return (torrent->belongsToCategory(*m_category));
+    if (std::ranges::any_of(m_excludedCategories, belongsToCategory))
+        return false;
+
+    return m_includedCategories.isEmpty() || std::ranges::any_of(m_includedCategories, belongsToCategory);
 }
 
 bool TorrentFilter::matchTag(const Torrent *const torrent) const
 {
-    if (!m_tag)
-        return true;
+    const auto hasTag = [torrent](const Tag &tag) -> bool
+    {
+        // Empty tag is a special value to indicate we're filtering for untagged torrents.
+        if (tag.isEmpty())
+            return torrent->tags().isEmpty();
 
-    // Empty tag is a special value to indicate we're filtering for untagged torrents.
-    if (m_tag->isEmpty())
-        return torrent->tags().isEmpty();
+        return torrent->hasTag(tag);
+    };
 
-    return torrent->hasTag(*m_tag);
+    if (std::ranges::any_of(m_excludedTags, hasTag))
+        return false;
+
+    return std::ranges::all_of(m_includedTags, hasTag);
 }
 
 bool TorrentFilter::matchPrivate(const Torrent *const torrent) const

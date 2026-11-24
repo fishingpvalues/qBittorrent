@@ -36,6 +36,7 @@
 #include "base/bittorrent/infohash.h"
 #include "base/bittorrent/torrentannouncestatus.h"
 #include "base/tag.h"
+#include "base/tagset.h"
 
 namespace BitTorrent
 {
@@ -87,7 +88,12 @@ public:
     bool setStatus(Status status);
     bool setTorrentIDSet(const std::optional<TorrentIDSet> &idSet);
     bool setCategory(const std::optional<QString> &category);
+    // Torrent must belong to any of `included` categories (or `included` is empty)
+    // and must not belong to any of `excluded` categories.
+    bool setCategories(const QSet<QString> &included, const QSet<QString> &excluded);
     bool setTag(const std::optional<Tag> &tag);
+    // Torrent must have all of `included` tags and none of `excluded` tags.
+    bool setTags(const TagSet &included, const TagSet &excluded);
     bool setPrivate(std::optional<bool> isPrivate);
     bool setTrackerHost(const std::optional<QString> &trackerHost);
     bool setAnnounceStatus(const std::optional<BitTorrent::TorrentAnnounceStatus> &announceStatus);
@@ -103,8 +109,10 @@ private:
     bool matchTracker(const BitTorrent::Torrent *torrent) const;
 
     Status m_status {All};
-    std::optional<QString> m_category;
-    std::optional<Tag> m_tag;
+    QSet<QString> m_includedCategories;
+    QSet<QString> m_excludedCategories;
+    TagSet m_includedTags;
+    TagSet m_excludedTags;
     std::optional<TorrentIDSet> m_idSet;
     std::optional<bool> m_private;
     std::optional<QString> m_trackerHost;
