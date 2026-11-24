@@ -1,3 +1,9 @@
+<div id="activeFiltersBar" class="invisible">
+    <span>QBT_TR(Active filters:)QBT_TR[CONTEXT=ActiveFiltersBar]</span>
+    <span id="activeFiltersChips"></span>
+    <span id="activeFiltersCounter"></span>
+    <button type="button" id="activeFiltersClearButton" title="QBT_TR(Remove all category and tag filters)QBT_TR[CONTEXT=ActiveFiltersBar]">QBT_TR(Clear filters)QBT_TR[CONTEXT=ActiveFiltersBar]</button>
+</div>
 <div id="torrentsTableDiv" class="dynamicTableDiv">
     <div id="torrentsTableFixedHeaderDiv" class="dynamicTableFixedHeaderDiv">
         <table class="dynamicTable unselectable" style="position:relative;">
@@ -108,6 +114,11 @@
 
         const setup = () => {
             torrentsTable.setup("torrentsTableDiv", "torrentsTableFixedHeaderDiv", contextMenu);
+
+            document.getElementById("activeFiltersClearButton").addEventListener("click", (event) => {
+                setCategoryFilter(CATEGORIES_ALL);
+                setTagFilter(TAGS_ALL);
+            });
         };
 
         return exports();

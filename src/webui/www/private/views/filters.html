@@ -123,6 +123,15 @@
             targets: ".categoriesFilterContextMenuTarget",
             menu: "categoriesFilterMenu",
             actions: {
+                includeCategory: (element, ref) => {
+                    setCategoryFilter(window.qBittorrent.Misc.updateItemFilter(categoryFilter, element.id, CATEGORIES_ALL, { ctrlKey: true }));
+                },
+                excludeCategory: (element, ref) => {
+                    setCategoryFilter(window.qBittorrent.Misc.updateItemFilter(categoryFilter, element.id, CATEGORIES_ALL, { altKey: true }));
+                },
+                resetCategoryFilter: (element, ref) => {
+                    setCategoryFilter(CATEGORIES_ALL);
+                },
                 createCategory: (element, ref) => {
                     createCategoryFN();
                 },
@@ -157,7 +166,10 @@
             },
             onShow: function() {
                 this.startTorrentObserver();
-                setCategoryFilter(this.options.element.id);
+                // Keep a complex filter intact, so that it can be changed via the menu
+                const { id } = this.options.element;
+                if (!window.qBittorrent.Misc.isMultiItemFilter(categoryFilter) && !categoryFilter.excluded.has(id))
+                    setCategoryFilter(id);
             },
             onHide: function() {
                 this.stopTorrentObserver();
@@ -168,6 +180,15 @@
             targets: ".tagsFilterContextMenuTarget",
             menu: "tagsFilterMenu",
             actions: {
+                includeTag: (element, ref) => {
+                    setTagFilter(window.qBittorrent.Misc.updateItemFilter(tagFilter, element.id, TAGS_ALL, { ctrlKey: true }));
+                },
+                excludeTag: (element, ref) => {
+                    setTagFilter(window.qBittorrent.Misc.updateItemFilter(tagFilter, element.id, TAGS_ALL, { altKey: true }));
+                },
+                resetTagFilter: (element, ref) => {
+                    setTagFilter(TAGS_ALL);
+                },
                 createTag: (element, ref) => {
                     createTagFN();
                 },
@@ -196,7 +217,10 @@
             },
             onShow: function() {
                 this.startTorrentObserver();
-                setTagFilter(this.options.element.id);
+                // Keep a complex filter intact, so that it can be changed via the menu
+                const { id } = this.options.element;
+                if (!window.qBittorrent.Misc.isMultiItemFilter(tagFilter) && !tagFilter.excluded.has(id))
+                    setTagFilter(id);
             },
             onHide: function() {
                 this.stopTorrentObserver();
@@ -250,23 +274,28 @@
 
         document.getElementById("Filters_pad").addEventListener("click", (event) => {
             const filterItem = event.target.closest("li");
-            if (!filterItem || filterItem.classList.contains("selectedFilter"))
+            if (filterItem === null)
                 return;
 
             const { id: filterItemID } = filterItem;
             const { id: filterListID } = filterItem.closest("ul[id]");
+            const isSelected = filterItem.classList.contains("selectedFilter");
             switch (filterListID) {
                 case "statusFilterList":
-                    setStatusFilter(filterItemID.replace("_filter", ""));
+                    if (!isSelected)
+                        setStatusFilter(filterItemID.replace("_filter", ""));
                     break;
                 case "categoryFilterList":
-                    setCategoryFilter(filterItemID);
+                    // Ctrl/Cmd+click includes the category, Alt/Option+click excludes it
+                    setCategoryFilter(window.qBittorrent.Misc.updateItemFilter(categoryFilter, filterItemID, CATEGORIES_ALL, event));
                     break;
                 case "tagFilterList":
-                    setTagFilter(filterItemID);
+                    // Ctrl/Cmd+click includes the tag, Alt/Option+click excludes it
+                    setTagFilter(window.qBittorrent.Misc.updateItemFilter(tagFilter, filterItemID, TAGS_ALL, event));
                     break;
                 case "trackerFilterList":
-                    setTrackerFilter(filterItemID);
+                    if (!isSelected)
+                        setTrackerFilter(filterItemID);
                     break;
                 default:
                     console.error(`Unexpected filterListID: ${filterListID}`);

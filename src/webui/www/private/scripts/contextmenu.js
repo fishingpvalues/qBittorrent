@@ -347,6 +347,30 @@ window.qBittorrent.ContextMenu ??= (() => {
             this.torrentObserver.disconnect();
         }
 
+        // `itemType` is the suffix of the menu actions, e.g. "Category" for "includeCategory"
+        updateItemFilterActions(filter, id, allItem, itemType) {
+            // see `onShow()`: a simple filter gets replaced by the clicked item
+            const effectiveFilter = (!window.qBittorrent.Misc.isMultiItemFilter(filter) && !filter.excluded.has(id))
+                ? window.qBittorrent.Misc.toItemFilter(id, allItem)
+                : filter;
+
+            if (id === allItem) {
+                this.hideItem(`include${itemType}`);
+                this.hideItem(`exclude${itemType}`);
+            }
+            else {
+                this.showItem(`include${itemType}`)
+                    .setItemChecked(`include${itemType}`, effectiveFilter.included.has(id));
+                this.showItem(`exclude${itemType}`)
+                    .setItemChecked(`exclude${itemType}`, effectiveFilter.excluded.has(id));
+            }
+
+            if ((effectiveFilter.included.size > 0) || (effectiveFilter.excluded.size > 0))
+                this.showItem(`reset${itemType}Filter`);
+            else
+                this.hideItem(`reset${itemType}Filter`);
+        }
+
         updateTorrentActions() {
             const torrentsVisible = torrentsTable.tableBody.children.length > 0;
             this.setEnabled("startTorrents", torrentsVisible)
@@ -599,6 +623,7 @@ window.qBittorrent.ContextMenu ??= (() => {
     class CategoriesFilterContextMenu extends FilterListContextMenu {
         updateMenuItems() {
             const id = this.options.element.id;
+            this.updateItemFilterActions(categoryFilter, id, CATEGORIES_ALL, "Category");
             if ((id !== CATEGORIES_ALL) && (id !== CATEGORIES_UNCATEGORIZED)) {
                 this.showItem("editCategory");
                 this.showItem("deleteCategory");
@@ -617,6 +642,7 @@ window.qBittorrent.ContextMenu ??= (() => {
     class TagsFilterContextMenu extends FilterListContextMenu {
         updateMenuItems() {
             const id = this.options.element.id;
+            this.updateItemFilterActions(tagFilter, id, TAGS_ALL, "Tag");
             if ((id !== TAGS_ALL) && (id !== TAGS_UNTAGGED))
                 this.showItem("deleteTag");
             else

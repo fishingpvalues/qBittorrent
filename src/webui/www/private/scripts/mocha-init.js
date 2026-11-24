@@ -787,7 +787,7 @@ const initializeWindows = () => {
     };
 
     startVisibleTorrentsFN = () => {
-        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, selectedCategory, selectedTag, selectedTracker);
+        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, categoryFilter, tagFilter, selectedTracker);
         if (hashes.length > 0) {
             fetch("api/v2/torrents/start", {
                     method: "POST",
@@ -808,7 +808,7 @@ const initializeWindows = () => {
     };
 
     forceStartVisibleTorrentsFN = () => {
-        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, selectedCategory, selectedTag, selectedTracker);
+        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, categoryFilter, tagFilter, selectedTracker);
         if (hashes.length > 0) {
             fetch("api/v2/torrents/setForceStart", {
                     method: "POST",
@@ -830,7 +830,7 @@ const initializeWindows = () => {
     };
 
     stopVisibleTorrentsFN = () => {
-        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, selectedCategory, selectedTag, selectedTracker);
+        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, categoryFilter, tagFilter, selectedTracker);
         if (hashes.length > 0) {
             fetch("api/v2/torrents/stop", {
                     method: "POST",
@@ -851,7 +851,7 @@ const initializeWindows = () => {
     };
 
     deleteVisibleTorrentsFN = () => {
-        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, selectedCategory, selectedTag, selectedTracker);
+        const hashes = torrentsTable.getFilteredTorrentsHashes(selectedStatus, categoryFilter, tagFilter, selectedTracker);
         if (hashes.length > 0) {
             if (window.qBittorrent.Cache.preferences.get().confirm_torrent_deletion) {
                 new MochaUI.Modal({

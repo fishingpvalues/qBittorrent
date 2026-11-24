@@ -47,6 +47,13 @@ window.qBittorrent.Misc ??= (() => {
             safeTrim: safeTrim,
             toFixedPointString: toFixedPointString,
             containsAllTerms: containsAllTerms,
+            createItemFilter: createItemFilter,
+            toItemFilter: toItemFilter,
+            updateItemFilter: updateItemFilter,
+            isItemFilterEqual: isItemFilterEqual,
+            isMultiItemFilter: isMultiItemFilter,
+            serializeItemFilter: serializeItemFilter,
+            parseItemFilter: parseItemFilter,
             sleep: sleep,
             DateFormatOptions: DateFormatOptions,
             downloadFile: downloadFile,
@@ -539,6 +546,87 @@ window.qBittorrent.Misc ??= (() => {
             }
         },
     });
+
+    /**
+     * Filter for items such as categories or tags.
+     * Torrents must match the `included` items (all items when empty) and must not match the `excluded` items.
+     */
+    const createItemFilter = (included = [], excluded = []) => {
+        return {
+            included: new Set(included),
+            excluded: new Set(excluded)
+        };
+    };
+
+    // Converts the ID of a single item (or `allItem`) to an item filter
+    const toItemFilter = (value, allItem) => {
+        if (typeof value !== "string")
+            return value;
+
+        return (value === allItem) ? createItemFilter() : createItemFilter([value]);
+    };
+
+    /**
+     * Returns the updated filter for a click on `item`:
+     * - plain click: filter by `item` only
+     * - Ctrl/Cmd+click: include `item` or stop including it
+     * - Alt/Option+click: exclude `item` or stop excluding it
+     */
+    const updateItemFilter = (filter, item, allItem, { altKey = false, ctrlKey = false, metaKey = false } = {}) => {
+        if (item === allItem)
+            return createItemFilter();
+
+        if (!altKey && !ctrlKey && !metaKey)
+            return createItemFilter([item]);
+
+        const included = new Set(filter.included);
+        const excluded = new Set(filter.excluded);
+        // an item cannot be included and excluded at the same time
+        const [toggledSet, otherSet] = altKey ? [excluded, included] : [included, excluded];
+        if (!toggledSet.delete(item)) {
+            toggledSet.add(item);
+            otherSet.delete(item);
+        }
+
+        return { included: included, excluded: excluded };
+    };
+
+    const isItemFilterEqual = (left, right) => {
+        const isSetEqual = (a, b) => (a.size === b.size) && [...a].every((item) => b.has(item));
+        return isSetEqual(left.included, right.included) && isSetEqual(left.excluded, right.excluded);
+    };
+
+    const isMultiItemFilter = (filter) => {
+        return (filter.included.size > 1) || (filter.excluded.size > 0);
+    };
+
+    const serializeItemFilter = (filter) => {
+        return JSON.stringify({
+            included: [...filter.included],
+            excluded: [...filter.excluded]
+        });
+    };
+
+    // Returns `null` if `json` is not a valid serialized item filter
+    const parseItemFilter = (json) => {
+        if (json === null)
+            return null;
+
+        try {
+            const { included, excluded } = JSON.parse(json);
+            if (!Array.isArray(included) || !Array.isArray(excluded))
+                return null;
+
+            const isString = (item) => (typeof item === "string");
+            if (!included.every(isString) || !excluded.every(isString))
+                return null;
+
+            return createItemFilter(included, excluded);
+        }
+        catch {
+            return null;
+        }
+    };
 
     return exports();
 })();

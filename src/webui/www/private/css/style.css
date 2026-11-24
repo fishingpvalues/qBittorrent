@@ -652,6 +652,46 @@ span.link :is(img, button) {
     color: var(--color-text-white);
 }
 
+.excludedFilter > span.link {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+#activeFiltersBar:not(.invisible) {
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 2px 4px;
+}
+
+#activeFiltersChips {
+    display: flex;
+    flex-grow: 1;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.activeFilterChip {
+    align-items: center;
+    border: 1px solid var(--color-border-default);
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    gap: 4px;
+    padding: 1px 8px;
+
+    & img {
+        height: 14px;
+        width: 14px;
+    }
+
+    &.excluded span {
+        text-decoration: line-through;
+    }
+}
+
 .subcategories,
 .subcategories ul {
     margin: 0;

@@ -377,15 +377,27 @@ let displayFullURLTrackerColumn = false;
 const CATEGORIES_ALL = "b4af0e4c-e76d-4bac-a392-46cbc18d9655";
 const CATEGORIES_UNCATEGORIZED = "e24bd469-ea22-404c-8e2e-a17c82f37ea0";
 
-let selectedCategory = localPreferences.get("selected_category", CATEGORIES_ALL);
+const loadItemFilter = (key, legacyKey, allItem) => {
+    const filter = window.qBittorrent.Misc.parseItemFilter(localPreferences.get(key));
+    if (filter !== null)
+        return filter;
+
+    // migrate from the single item setting
+    return window.qBittorrent.Misc.toItemFilter(localPreferences.get(legacyKey, allItem), allItem);
+};
+
+let categoryFilter = loadItemFilter("category_filter", "selected_category", CATEGORIES_ALL);
 let setCategoryFilter = () => {};
 
 /* Tags filter */
 const TAGS_ALL = "b4af0e4c-e76d-4bac-a392-46cbc18d9655";
 const TAGS_UNTAGGED = "e24bd469-ea22-404c-8e2e-a17c82f37ea0";
 
-let selectedTag = localPreferences.get("selected_tag", TAGS_ALL);
+let tagFilter = loadItemFilter("tag_filter", "selected_tag", TAGS_ALL);
 let setTagFilter = () => {};
+
+/* Active category and tag filters, shown above the transfer list */
+let updateActiveFiltersBar = () => {};
 
 /* Trackers filter */
 const TRACKERS_ALL = "b4af0e4c-e76d-4bac-a392-46cbc18d9655";
@@ -518,24 +530,38 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         handleFilterSelectionChange(currentHash, newHash);
     };
 
+    // `category` is either an item filter or the ID of a single category
     setCategoryFilter = (category) => {
+        const filter = window.qBittorrent.Misc.toItemFilter(category, CATEGORIES_ALL);
+        if (window.qBittorrent.Misc.isItemFilterEqual(filter, categoryFilter))
+            return;
+
         const currentHash = torrentsTable.getCurrentTorrentID();
 
-        localPreferences.set("selected_category", category);
-        selectedCategory = category;
+        localPreferences.set("category_filter", window.qBittorrent.Misc.serializeItemFilter(filter));
+        localPreferences.remove("selected_category");
+        categoryFilter = filter;
         highlightSelectedCategory();
+        updateActiveFiltersBar();
         updateMainData();
 
         const newHash = torrentsTable.getCurrentTorrentID();
         handleFilterSelectionChange(currentHash, newHash);
     };
 
+    // `tag` is either an item filter or the ID of a single tag
     setTagFilter = (tag) => {
+        const filter = window.qBittorrent.Misc.toItemFilter(tag, TAGS_ALL);
+        if (window.qBittorrent.Misc.isItemFilterEqual(filter, tagFilter))
+            return;
+
         const currentHash = torrentsTable.getCurrentTorrentID();
 
-        localPreferences.set("selected_tag", tag);
-        selectedTag = tag;
+        localPreferences.set("tag_filter", window.qBittorrent.Misc.serializeItemFilter(filter));
+        localPreferences.remove("selected_tag");
+        tagFilter = filter;
         highlightSelectedTag();
+        updateActiveFiltersBar();
         updateMainData();
 
         const newHash = torrentsTable.getCurrentTorrentID();
@@ -735,6 +761,88 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             window.qBittorrent.Filters.clearStatusFilter();
     };
 
+    const highlightItemFilter = (filterItem, filter, allItem) => {
+        const isSelected = (filter.included.size === 0)
+            ? (filterItem.id === allItem)
+            : filter.included.has(filterItem.id);
+        filterItem.classList.toggle("selectedFilter", isSelected);
+        filterItem.classList.toggle("excludedFilter", filter.excluded.has(filterItem.id));
+    };
+
+    // Removes items that no longer exist from `filter`
+    const pruneItemFilter = (filter, isValidItem) => {
+        const included = [...filter.included].filter(isValidItem);
+        const excluded = [...filter.excluded].filter(isValidItem);
+        return window.qBittorrent.Misc.createItemFilter(included, excluded);
+    };
+
+    updateActiveFiltersBar = () => {
+        const bar = document.getElementById("activeFiltersBar");
+        if (bar === null) // transfer list isn't loaded yet
+            return;
+
+        const chips = [];
+        const addChips = ({ filter, isExcluded, iconURL, getName, getToolTip, remove }) => {
+            const items = [...filter[isExcluded ? "excluded" : "included"]]
+                .map((item) => ({ item: item, name: getName(item) }))
+                .sort((left, right) => window.qBittorrent.Misc.naturalSortCollator.compare(left.name, right.name));
+            for (const { item, name } of items) {
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "activeFilterChip";
+                chip.classList.toggle("excluded", isExcluded);
+                chip.title = getToolTip(isExcluded).replace("%1", name);
+
+                const icon = document.createElement("img");
+                icon.src = isExcluded ? "images/list-remove.svg" : iconURL;
+                icon.alt = "";
+                const label = document.createElement("span");
+                label.textContent = name;
+                chip.append(icon, label);
+
+                chip.addEventListener("click", (event) => { remove(item); });
+                chips.push(chip);
+            }
+        };
+
+        const categoryChips = {
+            filter: categoryFilter,
+            iconURL: "images/view-categories.svg",
+            getName: (category) => ((category === CATEGORIES_UNCATEGORIZED) ? "QBT_TR(Uncategorized)QBT_TR[CONTEXT=ActiveFiltersBar]" : category),
+            getToolTip: (isExcluded) => (isExcluded
+                ? "QBT_TR(Hiding torrents in category \"%1\". Click to remove this filter.)QBT_TR[CONTEXT=ActiveFiltersBar]"
+                : "QBT_TR(Showing torrents in category \"%1\". Click to remove this filter.)QBT_TR[CONTEXT=ActiveFiltersBar]"),
+            remove: (category) => {
+                setCategoryFilter(window.qBittorrent.Misc.createItemFilter(
+                    [...categoryFilter.included].filter((item) => (item !== category)),
+                    [...categoryFilter.excluded].filter((item) => (item !== category))));
+            }
+        };
+        const tagChips = {
+            filter: tagFilter,
+            iconURL: "images/tags.svg",
+            getName: (tag) => ((tag === TAGS_UNTAGGED) ? "QBT_TR(Untagged)QBT_TR[CONTEXT=ActiveFiltersBar]" : tag),
+            getToolTip: (isExcluded) => (isExcluded
+                ? "QBT_TR(Hiding torrents with tag \"%1\". Click to remove this filter.)QBT_TR[CONTEXT=ActiveFiltersBar]"
+                : "QBT_TR(Showing torrents with tag \"%1\". Click to remove this filter.)QBT_TR[CONTEXT=ActiveFiltersBar]"),
+            remove: (tag) => {
+                setTagFilter(window.qBittorrent.Misc.createItemFilter(
+                    [...tagFilter.included].filter((item) => (item !== tag)),
+                    [...tagFilter.excluded].filter((item) => (item !== tag))));
+            }
+        };
+        addChips({ ...categoryChips, isExcluded: false });
+        addChips({ ...categoryChips, isExcluded: true });
+        addChips({ ...tagChips, isExcluded: false });
+        addChips({ ...tagChips, isExcluded: true });
+
+        bar.classList.toggle("invisible", (chips.length === 0));
+        document.getElementById("activeFiltersChips").replaceChildren(...chips);
+        document.getElementById("activeFiltersCounter").textContent = "QBT_TR(%1 of %2 torrents)QBT_TR[CONTEXT=ActiveFiltersBar]"
+            .replace("%1", torrentsTable.getFilteredRowsCount())
+            .replace("%2", torrentsTable.getRowSize());
+    };
+
     const updateCategoryList = () => {
         const categoryList = document.getElementById("categoryFilterList");
         if (!categoryList)
@@ -748,7 +856,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         const createLink = (category, text, count) => {
             const categoryFilterItem = categoryItemTemplate.content.cloneNode(true).firstElementChild;
             categoryFilterItem.id = category;
-            categoryFilterItem.classList.toggle("selectedFilter", (category === selectedCategory));
+            highlightItemFilter(categoryFilterItem, categoryFilter, CATEGORIES_ALL);
 
             const span = categoryFilterItem.firstElementChild;
             span.lastElementChild.textContent = `${text} (${count})`;
@@ -842,6 +950,11 @@ window.addEventListener("DOMContentLoaded", async (event) => {
 
         categoryList.appendChild(categoriesFragment);
         window.qBittorrent.Filters.categoriesFilterContextMenu.searchAndAddTargets();
+
+        setCategoryFilter(pruneItemFilter(categoryFilter, (category) => {
+            return (category === CATEGORIES_UNCATEGORIZED) || window.qBittorrent.Client.categoryMap.has(category);
+        }));
+        updateActiveFiltersBar();
     };
 
     const highlightSelectedCategory = () => {
@@ -850,7 +963,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             return;
 
         for (const category of categoryList.getElementsByTagName("li"))
-            category.classList.toggle("selectedFilter", (category.id === selectedCategory));
+            highlightItemFilter(category, categoryFilter, CATEGORIES_ALL);
     };
 
     const updateTagList = () => {
@@ -866,7 +979,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         const createLink = (tag, text, count) => {
             const tagFilterItem = tagItemTemplate.content.cloneNode(true).firstElementChild;
             tagFilterItem.id = tag;
-            tagFilterItem.classList.toggle("selectedFilter", (tag === selectedTag));
+            highlightItemFilter(tagFilterItem, tagFilter, TAGS_ALL);
 
             const span = tagFilterItem.firstElementChild;
             span.lastChild.textContent = `${text} (${count})`;
@@ -896,6 +1009,11 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             tagFilterList.appendChild(createLink(tagName, tagName, tagSize));
 
         window.qBittorrent.Filters.tagsFilterContextMenu.searchAndAddTargets();
+
+        setTagFilter(pruneItemFilter(tagFilter, (tag) => {
+            return (tag === TAGS_UNTAGGED) || window.qBittorrent.Client.tagMap.has(tag);
+        }));
+        updateActiveFiltersBar();
     };
 
     const highlightSelectedTag = () => {
@@ -904,7 +1022,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             return;
 
         for (const tag of tagFilterList.children)
-            tag.classList.toggle("selectedFilter", (tag.id === selectedTag));
+            highlightItemFilter(tag, tagFilter, TAGS_ALL);
     };
 
     const updateTrackerList = () => {

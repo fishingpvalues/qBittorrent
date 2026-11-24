@@ -243,3 +243,77 @@ test("Test formatDate() - Fallback Behavior", () => {
     // Restore original window.parent
     window.parent = originalParent;
 });
+
+test("Test toItemFilter()", () => {
+    const { toItemFilter, createItemFilter } = window.qBittorrent.Misc;
+    const ALL = "all";
+
+    expect(toItemFilter(ALL, ALL)).toStrictEqual(createItemFilter());
+    expect(toItemFilter("movies", ALL)).toStrictEqual(createItemFilter(["movies"]));
+
+    const filter = createItemFilter(["a"], ["b"]);
+    expect(toItemFilter(filter, ALL)).toBe(filter);
+});
+
+test("Test updateItemFilter()", () => {
+    const { updateItemFilter, createItemFilter } = window.qBittorrent.Misc;
+    const ALL = "all";
+
+    // plain click selects only the clicked item
+    expect(updateItemFilter(createItemFilter(["a", "b"], ["c"]), "d", ALL)).toStrictEqual(createItemFilter(["d"]));
+    expect(updateItemFilter(createItemFilter(["a", "b"], ["c"]), "a", ALL, { altKey: false })).toStrictEqual(createItemFilter(["a"]));
+
+    // clicking "All" resets the filter, regardless of modifiers
+    expect(updateItemFilter(createItemFilter(["a"], ["b"]), ALL, ALL, { ctrlKey: true })).toStrictEqual(createItemFilter());
+    expect(updateItemFilter(createItemFilter(["a"], ["b"]), ALL, ALL, { altKey: true })).toStrictEqual(createItemFilter());
+
+    // Ctrl/Cmd+click toggles inclusion
+    expect(updateItemFilter(createItemFilter(), "a", ALL, { ctrlKey: true })).toStrictEqual(createItemFilter(["a"]));
+    expect(updateItemFilter(createItemFilter(["a"]), "b", ALL, { metaKey: true })).toStrictEqual(createItemFilter(["a", "b"]));
+    expect(updateItemFilter(createItemFilter(["a", "b"]), "a", ALL, { ctrlKey: true })).toStrictEqual(createItemFilter(["b"]));
+    // ...and moves an excluded item to the included ones
+    expect(updateItemFilter(createItemFilter([], ["a"]), "a", ALL, { ctrlKey: true })).toStrictEqual(createItemFilter(["a"]));
+
+    // Alt/Option+click toggles exclusion
+    expect(updateItemFilter(createItemFilter(), "a", ALL, { altKey: true })).toStrictEqual(createItemFilter([], ["a"]));
+    expect(updateItemFilter(createItemFilter([], ["a"]), "a", ALL, { altKey: true })).toStrictEqual(createItemFilter());
+    // ...and moves an included item to the excluded ones
+    expect(updateItemFilter(createItemFilter(["a", "b"]), "a", ALL, { altKey: true })).toStrictEqual(createItemFilter(["b"], ["a"]));
+
+    // Alt wins over Ctrl
+    expect(updateItemFilter(createItemFilter(), "a", ALL, { altKey: true, ctrlKey: true })).toStrictEqual(createItemFilter([], ["a"]));
+
+    // input filter is not modified
+    const filter = createItemFilter(["a"]);
+    updateItemFilter(filter, "b", ALL, { ctrlKey: true });
+    expect(filter).toStrictEqual(createItemFilter(["a"]));
+});
+
+test("Test isItemFilterEqual() and isMultiItemFilter()", () => {
+    const { isItemFilterEqual, isMultiItemFilter, createItemFilter } = window.qBittorrent.Misc;
+
+    expect(isItemFilterEqual(createItemFilter(), createItemFilter())).toBe(true);
+    expect(isItemFilterEqual(createItemFilter(["a", "b"], ["c"]), createItemFilter(["b", "a"], ["c"]))).toBe(true);
+    expect(isItemFilterEqual(createItemFilter(["a"]), createItemFilter([], ["a"]))).toBe(false);
+    expect(isItemFilterEqual(createItemFilter(["a"]), createItemFilter(["a", "b"]))).toBe(false);
+
+    expect(isMultiItemFilter(createItemFilter())).toBe(false);
+    expect(isMultiItemFilter(createItemFilter(["a"]))).toBe(false);
+    expect(isMultiItemFilter(createItemFilter(["a", "b"]))).toBe(true);
+    expect(isMultiItemFilter(createItemFilter([], ["a"]))).toBe(true);
+});
+
+test("Test serializeItemFilter() and parseItemFilter()", () => {
+    const { serializeItemFilter, parseItemFilter, createItemFilter } = window.qBittorrent.Misc;
+
+    const filter = createItemFilter(["a", "b/c"], ["d"]);
+    expect(parseItemFilter(serializeItemFilter(filter))).toStrictEqual(filter);
+    expect(parseItemFilter(serializeItemFilter(createItemFilter()))).toStrictEqual(createItemFilter());
+
+    expect(parseItemFilter(null)).toBe(null);
+    expect(parseItemFilter("")).toBe(null);
+    expect(parseItemFilter("movies")).toBe(null);
+    expect(parseItemFilter("{}")).toBe(null);
+    expect(parseItemFilter("{\"included\":[1],\"excluded\":[]}")).toBe(null);
+    expect(parseItemFilter("{\"included\":\"a\",\"excluded\":[]}")).toBe(null);
+});
