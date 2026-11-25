@@ -107,14 +107,36 @@ TagSet TagFilterWidget::excludedTags() const
     return tags;
 }
 
+void TagFilterWidget::setFilter(const TagSet &included, const TagSet &excluded)
+{
+    const auto toIndexes = [this](const TagSet &tags)
+    {
+        QModelIndexList indexes;
+        for (const Tag &tag : tags)
+        {
+            if (const QModelIndex index = indexOf(tag); index.isValid())
+                indexes.append(index);
+        }
+        return indexes;
+    };
+
+    FilterTreeView::setFilter(toIndexes(included), toIndexes(excluded));
+}
+
 void TagFilterWidget::removeFromFilter(const Tag &tag)
 {
-    const QModelIndex index = tag.isEmpty()
-        ? model()->index(1, 0)  // Untagged
-        : static_cast<TagFilterProxyModel *>(model())->index(tag);
+    const QModelIndex index = indexOf(tag);
 
     setIncluded(index, false);
     setExcluded(index, false);
+}
+
+QModelIndex TagFilterWidget::indexOf(const Tag &tag) const
+{
+    if (tag.isEmpty())
+        return model()->index(1, 0);  // Untagged
+
+    return static_cast<const TagFilterProxyModel *>(model())->index(tag);
 }
 
 void TagFilterWidget::showMenu()

@@ -29,6 +29,8 @@
 
 #include "transferlistfilterswidget.h"
 
+#include <optional>
+
 #include <QIcon>
 #include <QListWidgetItem>
 #include <QMenu>
@@ -56,6 +58,16 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     setBackgroundRole(QPalette::Base);
 
     Preferences *const pref = Preferences::instance();
+
+    // The sidebar is recreated each time it is shown, while the transfer list
+    // (and the active filters bar) keep the filter. Restore it in the sidebar.
+    const QSet<QString> includedCategories = transferList->includedCategories();
+    const QSet<QString> excludedCategories = transferList->excludedCategories();
+    const TagSet includedTags = transferList->includedTags();
+    const TagSet excludedTags = transferList->excludedTags();
+    const QSet<QString> includedTrackerHosts = transferList->includedTrackerHosts();
+    const QSet<QString> excludedTrackerHosts = transferList->excludedTrackerHosts();
+    const std::optional<BitTorrent::TorrentAnnounceStatus> announceStatus = transferList->announceStatusFilter();
 
     // Construct lists
     auto *mainWidget = new QWidget;
@@ -99,6 +111,9 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
         });
         connect(item, &TransferListFiltersWidgetItem::toggled, pref, &Preferences::setCategoryFilterState);
         mainWidgetLayout->addWidget(item);
+
+        if (item->isChecked())
+            categoryFilterWidget->setFilter(includedCategories, excludedCategories);
     }
 
     {
@@ -126,6 +141,9 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
         });
         connect(item, &TransferListFiltersWidgetItem::toggled, pref, &Preferences::setTagFilterState);
         mainWidgetLayout->addWidget(item);
+
+        if (item->isChecked())
+            tagFilterWidget->setFilter(includedTags, excludedTags);
     }
 
     const int trackerStatusItemPos = mainWidgetLayout->count();
@@ -139,6 +157,9 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
         connect(item, &TransferListFiltersWidgetItem::toggled, pref, &Preferences::setTrackerFilterState);
         m_trackersFilterWidget->toggleFilter(item->isChecked());
         mainWidgetLayout->addWidget(item);
+
+        if (item->isChecked())
+            m_trackersFilterWidget->setFilter(includedTrackerHosts, excludedTrackerHosts, announceStatus);
     }
 
     auto *scroll = new QScrollArea(this);

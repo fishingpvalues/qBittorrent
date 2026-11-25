@@ -29,9 +29,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include <QtContainerFwd>
 #include <QHash>
 
+#include "base/bittorrent/torrentannouncestatus.h"
 #include "base/path.h"
 #include "basefilterwidget.h"
 
@@ -60,6 +63,8 @@ public:
 
     void setDownloadTrackerFavicon(bool value);
     // Pass empty string for "Trackerless" item
+    void setFilter(const QSet<QString> &includedHosts, const QSet<QString> &excludedHosts
+            , std::optional<BitTorrent::TorrentAnnounceStatus> announceStatus);
     void removeFromFilter(const QString &trackerHost);
     void resetFilter();
     void resetAnnounceStatusFilter();

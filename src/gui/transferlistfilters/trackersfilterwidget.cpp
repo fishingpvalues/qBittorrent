@@ -623,6 +623,43 @@ void TrackersFilterWidget::applyFilter([[maybe_unused]] const int row)
     transferList()->applyTrackerFilter(included, excluded);
 }
 
+void TrackersFilterWidget::setFilter(const QSet<QString> &includedHosts, const QSet<QString> &excludedHosts
+        , const std::optional<BitTorrent::TorrentAnnounceStatus> announceStatus)
+{
+    if (m_handleTrackerStatuses && announceStatus)
+    {
+        int statusRow = -1;
+        if (announceStatus->testFlag(BitTorrent::TorrentAnnounceStatusFlag::HasTrackerError))
+            statusRow = TRACKERERROR_ROW;
+        else if (announceStatus->testFlag(BitTorrent::TorrentAnnounceStatusFlag::HasOtherError))
+            statusRow = OTHERERROR_ROW;
+        else if (announceStatus->testFlag(BitTorrent::TorrentAnnounceStatusFlag::HasWarning))
+            statusRow = WARNING_ROW;
+
+        if (statusRow >= 0)
+        {
+            // Tracker statuses are single choice items, so they replace the filter
+            selectionModel()->setCurrentIndex(model()->index(statusRow, 0)
+                , (QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows));
+            return;
+        }
+    }
+
+    const auto toIndexes = [this](const QSet<QString> &trackerHosts)
+    {
+        QModelIndexList indexes;
+        for (const QString &trackerHost : trackerHosts)
+        {
+            const int row = (trackerHost == NULL_HOST) ? TRACKERLESS_ROW : rowFromTracker(trackerHost);
+            if (row >= 0)
+                indexes.append(model()->index(row, 0));
+        }
+        return indexes;
+    };
+
+    m_filterHandler->setFilter(toIndexes(includedHosts), toIndexes(excludedHosts));
+}
+
 void TrackersFilterWidget::removeFromFilter(const QString &trackerHost)
 {
     const int trackerRow = (trackerHost == NULL_HOST) ? TRACKERLESS_ROW : rowFromTracker(trackerHost);

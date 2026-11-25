@@ -125,15 +125,42 @@ QSet<QString> CategoryFilterWidget::excludedCategories() const
     return categories;
 }
 
+void CategoryFilterWidget::setFilter(const QSet<QString> &included, const QSet<QString> &excluded)
+{
+    const auto toIndexes = [this](const QSet<QString> &categoryNames)
+    {
+        QModelIndexList indexes;
+        for (const QString &categoryName : categoryNames)
+        {
+            const QModelIndex index = indexOf(categoryName);
+            if (!index.isValid())
+                continue;
+
+            indexes.append(index);
+            // Make subcategories in the filter visible
+            for (QModelIndex parent = index.parent(); parent.isValid(); parent = parent.parent())
+                expand(parent);
+        }
+        return indexes;
+    };
+
+    FilterTreeView::setFilter(toIndexes(included), toIndexes(excluded));
+}
+
 void CategoryFilterWidget::removeFromFilter(const QString &categoryName)
 {
-    const auto *proxyModel = static_cast<CategoryFilterProxyModel *>(model());
-    const QModelIndex index = categoryName.isEmpty()
-        ? model()->index(1, 0)  // Uncategorized
-        : proxyModel->index(categoryName);
+    const QModelIndex index = indexOf(categoryName);
 
     setIncluded(index, false);
     setExcluded(index, false);
+}
+
+QModelIndex CategoryFilterWidget::indexOf(const QString &categoryName) const
+{
+    if (categoryName.isEmpty())
+        return model()->index(1, 0);  // Uncategorized
+
+    return static_cast<const CategoryFilterProxyModel *>(model())->index(categoryName);
 }
 
 void CategoryFilterWidget::showMenu()

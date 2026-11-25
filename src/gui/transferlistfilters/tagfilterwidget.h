@@ -42,6 +42,8 @@ public:
 
     TagSet includedTags() const;
     TagSet excludedTags() const;
+    // Pass empty tag for "Untagged" item
+    void setFilter(const TagSet &included, const TagSet &excluded);
     void removeFromFilter(const Tag &tag);
 
 signals:
@@ -61,6 +63,7 @@ private slots:
 private:
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
+    QModelIndex indexOf(const Tag &tag) const;
     void rowsInserted(const QModelIndex &parent, int start, int end) override;
     Tag askTagName();
 };

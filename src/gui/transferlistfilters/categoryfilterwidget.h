@@ -44,6 +44,8 @@ public:
     QString currentCategory() const;
     QSet<QString> includedCategories() const;
     QSet<QString> excludedCategories() const;
+    // Pass empty string for "Uncategorized" item
+    void setFilter(const QSet<QString> &included, const QSet<QString> &excluded);
     void removeFromFilter(const QString &categoryName);
 
 signals:
@@ -67,5 +69,6 @@ private:
     QSize minimumSizeHint() const override;
     void rowsInserted(const QModelIndex &parent, int start, int end) override;
     bool hasAnySubcategory() const;
+    QModelIndex indexOf(const QString &categoryName) const;
     void adjustIndentation();
 };

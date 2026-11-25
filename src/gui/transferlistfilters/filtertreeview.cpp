@@ -61,6 +61,11 @@ void FilterTreeView::setExcluded(const QModelIndex &index, const bool excluded)
     m_filterHandler->setExcluded(index, excluded);
 }
 
+void FilterTreeView::setFilter(const QModelIndexList &included, const QModelIndexList &excluded)
+{
+    m_filterHandler->setFilter(included, excluded);
+}
+
 void FilterTreeView::resetFilter()
 {
     m_filterHandler->resetFilter();

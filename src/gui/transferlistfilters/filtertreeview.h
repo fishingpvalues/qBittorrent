@@ -45,6 +45,7 @@ public:
     QModelIndexList excludedIndexes() const;
     void setIncluded(const QModelIndex &index, bool included);
     void setExcluded(const QModelIndex &index, bool excluded);
+    void setFilter(const QModelIndexList &included, const QModelIndexList &excluded);
     void resetFilter();
 
 signals:

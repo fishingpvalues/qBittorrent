@@ -66,6 +66,8 @@ public:
 
     void setIncluded(const QModelIndex &index, bool included);
     void setExcluded(const QModelIndex &index, bool excluded);
+    // Replaces the whole filter. Single choice items are ignored.
+    void setFilter(const QModelIndexList &included, const QModelIndexList &excluded);
     void resetFilter();
 
     void addFilterActions(QMenu *menu, const QModelIndex &index);

@@ -170,6 +170,36 @@ void FilterSelectionHandler::setExcluded(const QModelIndex &index, const bool ex
     notifyFilterChanged();
 }
 
+void FilterSelectionHandler::setFilter(const QModelIndexList &included, const QModelIndexList &excluded)
+{
+    m_isUpdatingSelection = true;
+
+    QItemSelectionModel *selectionModel = m_view->selectionModel();
+
+    QItemSelection selection;
+    for (const QModelIndex &index : included)
+    {
+        if (index.isValid() && !isAllIndex(index) && !isSingleChoiceIndex(index))
+            selection.select(index, index);
+    }
+    selectionModel->select(selection, (QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows));
+
+    m_excludedIndexes.clear();
+    for (const QModelIndex &index : excluded)
+    {
+        if (index.isValid() && !isAllIndex(index) && !isSingleChoiceIndex(index) && !isIncluded(index))
+            m_excludedIndexes.append(QPersistentModelIndex(index.siblingAtColumn(0)));
+    }
+
+    selectAllIfNothingIncluded();
+    selectionModel->setCurrentIndex(selectionModel->selectedRows().value(0), QItemSelectionModel::NoUpdate);
+
+    m_isUpdatingSelection = false;
+
+    m_view->viewport()->update();
+    notifyFilterChanged();
+}
+
 void FilterSelectionHandler::resetFilter()
 {
     m_isUpdatingSelection = true;
